@@ -46,6 +46,7 @@ AC_GNU_SOURCE
 AC_PROG_CC
 AC_PROG_CC_STDC
 AM_PROG_CC_C_O
+AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_GREP
@@ -81,14 +82,16 @@ AC_SYS_LARGEFILE
 # Check for libraries.
 AC_CHECK_LIB([config], [config_init],,
     AC_MSG_ERROR([*** config library not found **]))
+AC_CHECK_LIB([ical], [icalcomponent_vanew],,
+    AC_MSG_ERROR([*** libcal library not found **]))
 AC_CHECK_LIB([curl], [curl_easy_init],,
     AC_MSG_ERROR([*** curl library not found **]))
 AC_CHECK_LIB([glib-2.0], [g_slist_append],,
     AC_MSG_ERROR([*** glib2 not found **]))
 
 # Check for modules.
-PKG_CHECK_MODULES([DEPS], [libconfig >= 1.3 libcurl >= 7.20 glib-2.0 >= 2.30.0],,
-    AC_MSG_ERROR([*** libconfig or curl source not found **]))
+PKG_CHECK_MODULES([DEPS], [libconfig >= 1.3 libical >= 0.48 libcurl >= 7.20 glib-2.0 >= 2.30.0],,
+    AC_MSG_ERROR([*** libconfig, libical, or curl source not found **]))
 
 # Check for library functions.
 AC_CHECK_FUNCS([getopt_long],,
