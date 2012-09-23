@@ -1,0 +1,93 @@
+/**
+@mainpage gtasks2ical: Conversion between Google Tasks and iCalendar
+
+@htmlonly
+<center>
+<a href="#summary">Summary</a>
+<a href="#requirements">Requirements</a>
+<a href="#installation">Installation</a>
+<a href="#config">Configuration</a>
+<a href="#thanks">Thanks</a>
+<a href="#copyright">Copyright</a>
+</center>
+@endhtmlonly
+
+@section summary Summary
+
+gtasks2ical reads Google Tasks and converts them to iCalendar format, and
+vice versa.
+
+gtasks2ical is available from github <https://github.com/olewolf/gtasks2ical/wiki>.
+
+@section requirements Requirements
+
+The following software is needed to generate gtasks2ical:
+
+@li libconfig
+@li automake
+@li <a href="http://www.stack.nl/~dimitri/doxygen/index.html">doxygen</a>
+1.2.13+ for generating the documentation.
+@li <a href="http://www.graphviz.org/">GraphViz</a> for generating call graphs
+as part of the documentation.
+
+The following software is needed to run gtasks2ical:
+
+@li libconfig
+
+@section installation Installation
+ 
+@subsection installation_tarballs Building from Source Tarball
+
+Get the code:
+@li <a href="http://https://github.com/olewolf/gtasks2ical/tags/gtasks2ical-@VERSION@.tar.gz">gtasks2ical-@VERSION@.tar.gz</a>
+
+The gtasks2ical uses the GNU autotools compilation and installation
+framework. The following commands should build gtasks2ical:
+
+@code
+$ tar -xvf gtasks2ical-@VERSION@.tar.gz
+$ cd gtasks2ical-@VERSION@
+$ ./configure
+$ make
+# sudo make install
+@endcode
+
+Checkout the @c INSTALL file for installation and the generated doxygen
+documentation for more information.
+
+@subsection installation_deb Debian (Ubuntu) Repository
+
+Ubuntu .deb on Launchpad:
+@li <a href="http://">some</a>
+
+@section config Configuration
+
+@subsection env Environment variables
+
+@li gtasks2ical reads your Google password from the environment variable @c GMAIL_PASSWORD.
+
+@section copyright Copyright
+
+Copyright: 2012 Ole Wolf <wolf@blazingangles.com>
+
+License: GPL-3+
+
+This file is part of gtasks2ical.
+
+gtasks2ical is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+On Debian systems, the complete text of the GNU General Public
+License version 3 can be found in "/usr/share/common-licenses/GPL-3".
+
+*/
