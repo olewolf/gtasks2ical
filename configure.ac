@@ -28,8 +28,8 @@ AM_INIT_AUTOMAKE
 CFLAGS=""
 
 # Prepare autotest suite.
-#AC_CONFIG_TESTDIR([test])
-#AC_CONFIG_FILES([test/atlocal])
+AC_CONFIG_TESTDIR([test])
+AC_CONFIG_FILES([test/atlocal])
 
 # Add configuration options.
 AC_ARG_ENABLE([doc],
@@ -67,17 +67,10 @@ AC_PATH_PROGS(PSCAN, pscan)
 # Check for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDC
 AC_C_CONST
-AC_C_INLINE
-AC_TYPE_UINT32_T
-AC_TYPE_UINT8_T
 AC_TYPE_SIZE_T
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_FUNC_FORK
 AC_TYPE_SIZE_T
-
-# Large file support.
-AC_SYS_LARGEFILE
 
 # Check for libraries.
 AC_CHECK_LIB([config], [config_init],,
@@ -88,10 +81,16 @@ AC_CHECK_LIB([curl], [curl_easy_init],,
     AC_MSG_ERROR([*** curl library not found **]))
 AC_CHECK_LIB([glib-2.0], [g_slist_append],,
     AC_MSG_ERROR([*** glib2 not found **]))
+AC_CHECK_LIB([xml2], [xmlReadMemory],,
+    AC_MSG_ERROR([*** libxml2 library not found **]))
+AC_CHECK_LIB([tidy], [tidyCreate],,
+    AC_MSG_ERROR([*** libtidy library not found **]))
 
-# Check for modules.
-PKG_CHECK_MODULES([DEPS], [libconfig >= 1.3 libical >= 0.48 libcurl >= 7.20 glib-2.0 >= 2.30.0],,
-    AC_MSG_ERROR([*** libconfig, libical, or curl source not found **]))
+PKG_CHECK_MODULES([libconfig], [libconfig >= 1.3],, AC_MSG_ERROR([*** libconfig not found **]))
+PKG_CHECK_MODULES([libical], [libical >= 0.48],, AC_MSG_ERROR([*** libical not found **]))
+PKG_CHECK_MODULES([libcurl], [libcurl >= 7.20],, AC_MSG_ERROR([*** libcurl not found **]))
+PKG_CHECK_MODULES([libxml2], [libxml-2.0 >= 2.7.0],, AC_MSG_ERROR([*** libxml2 not found **]))
+PKG_CHECK_MODULES([glib2], [glib-2.0 >= 2.30.0],, AC_MSG_ERROR([*** glib-2.0 not found **]))
 
 # Check for library functions.
 AC_CHECK_FUNCS([getopt_long],,
@@ -128,17 +127,22 @@ AC_CHECK_HEADER([fcntl.h],,
     AC_MSG_ERROR([*** fcntl.h not found **]))
 AC_CHECK_HEADER([curl/curl.h],,
     AC_MSG_ERROR([*** curl.h not found **]))
-CFLAGS_SAVE="$CFLAGS"
-CFLAGS="$CFLAGS -Wall -Werror $DEPS_CFLAGS"
+AC_CHECK_HEADER([tidy/tidy.h],,
+    AC_MSG_ERROR([*** tidy.h not found **]))
+CFLAGS="$CFLAGS -Wall -Werror $libconfig_CFLAGS $libical_CFLAGS $libcurl_CFLAGS $libxml2_CFLAGS $glib2_CFLAGS"
 AC_CHECK_HEADER([glib-2.0/glib.h], [], 
 AC_MSG_ERROR([*** glib-2.0/glib.h not found **]),
 [
 AC_INCLUDES_DEFAULT
 ])
-CFLAGS="$CFLAGS_SAVE"
-AC_DEFINE([_GNU_SOURCE], [], [Use GNU extensions])
+AC_CHECK_HEADER([libxml/parser.h], [], 
+AC_MSG_ERROR([*** libxml/parser.h not found **]),
+[
+AC_INCLUDES_DEFAULT
+])
 
-LT_INIT([disable-static])
+AC_DEFINE([_GNU_SOURCE], [], [Use GNU extensions])
+LIBS="$libconfig_LIBS $libical_LIBS $libcurl_LIBS $libxml2_LIBS $glib2_LIBS -ltidy"
 
 MAKE_DOXYGEN=false
 if @<:@ "x$ac_enable_doc" = "xyes" @:>@; then
@@ -164,13 +168,9 @@ if @<:@ "x$ac_enable_openssltest" != "xno" @:>@; then
 fi
 AM_CONDITIONAL(MAKE_OPENSSL_TESTS,$MAKE_OPENSSL_TESTS)
 
-CFLAGS="$CFLAGS -Wall -Werror -Wextra $DEPS_CFLAGS"
-LIBS_OLD="$LIBS"
-LIBS="$DEPS_LIBS"
-
 # Output files.
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile doc/Makefile doc/man/Makefile test/Makefile])
 AC_OUTPUT([doc/main.doc])
 
 AC_MSG_NOTICE([

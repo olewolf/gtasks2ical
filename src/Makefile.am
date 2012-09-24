@@ -22,4 +22,6 @@ bin_PROGRAMS = gtasks2ical
 
 HDR = config.h gtasks2ical.h
 
-gtasks2ical_SOURCES = $(HDR) gtasks2ical.c initializeconfig.c
+gtasks2ical_SOURCES = $(HDR) gtasks2ical.c initializeconfig.c oauth2.c
+
+

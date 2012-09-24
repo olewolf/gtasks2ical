@@ -2,14 +2,6 @@ man1_MANS = gtasks2ical.1
 
 CLEANFILES = $(man1_MANS) $(man5_MANS)
 
-%.1 : %.1.src
-	REPLACE="$$""{sysconfdir}"; \
-	cat $< | sed "s^$$REPLACE^${sysconfdir}^" > $@
-
-%.5 : %.5.src
-	REPLACE="$$""{sysconfdir}"; \
-	cat $< | sed "s^$$REPLACE^${sysconfdir}^" > $@
-
 install-data-hook:
 	manpages=( ${man1_MANS} ); \
 	for manpage in $${manpages[@]}; do \
