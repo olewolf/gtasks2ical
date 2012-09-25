@@ -1,0 +1,19 @@
+Source: gtasks2ical
+Section: utils
+Priority: extra
+Maintainer: Ole Wolf <wolf@blazingangles.com>
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, libtidy-dev, libxml2-dev,
+ autoconf, dh-autoreconf, autotools-dev, libcurl4-gnutls-dev
+Standards-Version: 3.9.3
+Homepage: https://github.com/olewolf/gtasks2ical/wiki
+Vcs-Git: git://github.com/olewolf/gtasks2ical.git
+Vcs-Browser: https://github.com/olewolf/gtasks2ical
+
+Package: gtasks2ical
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libtidy-0.99-0, libxml2,
+ libcurl3
+Description: Convert between Google Tasks and iCalendar format
+ Google does not provide a SyncML interface to its tasks and instead relies
+ on a proprietary format.  This utility connects to a user's Google account
+ and converts the user's tasks to an iCalender format or vice versa.

@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+#export DH_VERBOSE=1
+
+# The GNU ChangeLog should only be included in the vanilla ./configure ; make;
+# make install procedure, not in the Debian package build.
+export DH_ALWAYS_EXCLUDE=ChangeLog
+
+%:
+	dh $@ --with autotools_dev
+
+override_dh_auto_configure:
+	autoreconf --install
+	dh_auto_configure -- --disable-openssltest 
+
+override_dh_auto_clean:
+	rm -rf doc/doxygen
+	dh_auto_clean --
+
+override_dh_builddeb:
+	dh_builddeb -- -Zlzma

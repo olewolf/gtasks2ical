@@ -1,0 +1,5 @@
+gtasks2ical (0.1-1) unstable; urgency=low
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- Ole Wolf <wolf@blazingangles.com>  Tue, 25 Sep 2012 13:26:03 +0200
