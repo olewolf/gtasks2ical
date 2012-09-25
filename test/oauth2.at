@@ -1,0 +1,39 @@
+# Copyright (C) 2012 Ole Wolf <wolf@blazingangles.com>
+#
+# This file is part of gtasks2ical.
+# 
+# gtasks2ical is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+AT_BANNER([OAuth2 Tests])
+
+AT_SETUP([Extract forms from malformed HTML page])
+AT_CHECK([test-oauth2 get_forms], [], [stdout])
+AT_CHECK([grep '^1: action = https://accounts.google.com/o/oauth2/approval.as=1b7d1e62482c65df.hl=da.xsrfsign=APsBz4gAA.\+KuQYiDBq5UE$' stdout], [], [ignore])
+AT_CHECK([grep '^1: name   = (null)$' stdout], [], [ignore])
+AT_CHECK([grep '^1: value  = (null)$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = approval_ui, value = 0$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = bgresponse, value = (null)$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = _utf8, value = &#9731$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = state_wrapper, value = CvMBcmVz.\+UwNDE5Njc$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = submit_access, value = true$' stdout], [], [ignore])
+AT_CHECK([grep '2: action = https://accounts.google.com/o/oauth2/approval?as=1b7d1e62482c65df&hl=da&xsrfsign=APsBz4gAA.\+KuQYiDBq5UE$' stdout], [], [ignore])
+AT_CHECK([grep '2: name   = (null)$' stdout], [], [ignore])
+AT_CHECK([grep '2: value  = (null)$' stdout], [], [ignore])
+AT_CHECK([grep 'input 2: name = approval_ui, value = 0$' stdout], [], [ignore])
+AT_CHECK([grep 'input 2: name = bgresponse, value = (null)$' stdout], [], [ignore])
+AT_CHECK([grep 'input 2: name = _utf8, value = &#9731$' stdout], [], [ignore])
+AT_CHECK([grep 'input 2: name = state_wrapper, value = CvMBcmVz.\+NDE5Njc$' stdout], [], [ignore])
+AT_CHECK([grep 'input 2: name = submit_access, value = false$' stdout], [], [ignore])
+AT_CLEANUP
