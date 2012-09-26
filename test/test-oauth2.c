@@ -23,6 +23,7 @@
 #include <config.h>
 #include <stdio.h>
 #include <glib.h>
+#include <curl/curl.h>
 #include "gtasks2ical.h"
 #include "oauth2.h"
 #include "testfunctions.h"
@@ -41,13 +42,15 @@ extern form_field_t *find_form( const gchar *raw_html_page,
 								const gchar *input_names[ ] );
 extern size_t receive_curl_response( const char *ptr, size_t size,
 									 size_t nmemb, void *state_data );
+extern gchar *read_url( CURL *curl, const gchar *url );
+
 
 static void test__get_forms( const char *param );
 static void test__search_input_by_name( const char *param );
 static void test__search_form_by_action_and_inputs( const char *param );
 static void test__find_form( const char *param );
 static void test__receive_curl_response( const char *param );
-
+static void test__read_url( const char *param );
 
 
 const struct dispatch_table_t dispatch_table[ ] =
@@ -57,6 +60,7 @@ const struct dispatch_table_t dispatch_table[ ] =
 	DISPATCHENTRY( search_form_by_action_and_inputs ),
 	DISPATCHENTRY( find_form ),
 	DISPATCHENTRY( receive_curl_response ),
+	DISPATCHENTRY( read_url ),
 
     { NULL, NULL }
 };
@@ -226,3 +230,16 @@ static void test__receive_curl_response( const char *param )
 	printf( "3: %2d \"%s\"\n", (int) processed, write_buffer.data );
 }
 
+
+
+static void test__read_url( const char *param )
+{
+	CURL  *curl;
+	gchar *html;
+
+	curl = curl_easy_init( );
+	html = read_url( curl, "http://www.microsoft.com" );
+	curl_easy_cleanup( curl );
+	printf( "%s\n", html );
+	g_free( html );
+}

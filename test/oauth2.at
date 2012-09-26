@@ -77,3 +77,14 @@ AT_CHECK([grep '^3:  3 "0123456789101112131415161718"$' stdout], [], [ignore])
 AT_CLEANUP
 
 
+AT_SETUP([Read web page (requries internet access)])
+AT_CHECK([test-oauth2 read_url], [], [stdout])
+AT_CHECK([grep '<html>' stdout], [], [ignore])
+AT_CHECK([grep '</html>' stdout], [], [ignore])
+AT_CHECK([grep '<head>' stdout], [], [ignore])
+AT_CHECK([grep '</head>' stdout], [], [ignore])
+AT_CHECK([grep 'Microsoft Corporation' stdout], [], [ignore])
+AT_CHECK([grep '<title>' stdout], [], [ignore])
+AT_CLEANUP
+
+

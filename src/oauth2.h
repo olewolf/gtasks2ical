@@ -74,7 +74,7 @@ struct curl_write_buffer_t
    fill a form with input data. */
 struct curl_form_vars_t
 {
-	struct curl_httppost **login_form_post;
+	struct curl_httppost **form_post;
 	struct curl_httppost **last_post_data;
 };
 
