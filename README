@@ -67,7 +67,7 @@ with the option:
 
 Otherwise you may build the documentation manually by issuing the command:
 
-    $ make doxygen
+    $ make doc
 
 in the top directory.
 

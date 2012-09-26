@@ -27,7 +27,21 @@
 #include <config.h>
 #include <glib.h>
 #include <stdlib.h>
-#include "gtasks2ical.h"
+#include <glib.h>
+
+
+/* To use gtasks2ical in your own application, register your application
+   with Google and change the client ID and client secret settings to match
+   those of your application. */
+#define GOOGLE_CLIENT_ID     430385316884.apps.googleusercontent.com
+#define GOOGLE_CLIENT_SECRET Fcjb9cdutlDWu2lSLq2IaC5M
+
+/* Define file scope functions as global during testing. */
+#ifdef AUTOTEST
+#define STATIC
+#else
+#define STATIC static
+#endif
 
 
 struct Configuration
@@ -44,8 +58,12 @@ struct Configuration
 
 
 gboolean
-InitializeConfiguration(
+Initialize_Configuration(
     struct Configuration *configuration, int argc, const char *const *argv );
+
+gboolean
+Google_Authenticate( gchar *username, gchar *password );
+
 
 
 

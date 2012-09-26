@@ -21,13 +21,12 @@ config/*
 m4/lt*.m4
 m4/libtool.m4
 
-debian/gtasks2ical.log
+debian/gtasks2ical*.log
 debian/gtasks2ical/
 debian/*.substvars
 debian/*.debhelper
 debian/tmp/*
 
-doc/man/gtasks2ical.1
 doc/doxygen
 doc/main.doc
 
@@ -39,3 +38,4 @@ test/test-someexecutable
 test/testsuite
 test/testsuite.log
 test/testsuite.at
+test/test-oauth2

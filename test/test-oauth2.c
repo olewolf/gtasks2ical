@@ -22,6 +22,7 @@
 
 #include <config.h>
 #include <stdio.h>
+#include <glib.h>
 #include "gtasks2ical.h"
 #include "oauth2.h"
 #include "testfunctions.h"
@@ -30,14 +31,32 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
-
+extern int search_input_by_name( gconstpointer input_ptr,
+								 gconstpointer input_names_ptr );
+extern GSList *get_forms( const gchar *raw_html_page );
+extern int search_form_by_action_and_inputs( gconstpointer form_ptr,
+											 gconstpointer search_ptr );
+extern form_field_t *find_form( const gchar *raw_html_page,
+								const gchar *form_action,
+								const gchar *input_names[ ] );
+extern size_t receive_curl_response( const char *ptr, size_t size,
+									 size_t nmemb, void *state_data );
 
 static void test__get_forms( const char *param );
+static void test__search_input_by_name( const char *param );
+static void test__search_form_by_action_and_inputs( const char *param );
+static void test__find_form( const char *param );
+static void test__receive_curl_response( const char *param );
+
 
 
 const struct dispatch_table_t dispatch_table[ ] =
 {
 	DISPATCHENTRY( get_forms ),
+	DISPATCHENTRY( search_input_by_name ),
+	DISPATCHENTRY( search_form_by_action_and_inputs ),
+	DISPATCHENTRY( find_form ),
+	DISPATCHENTRY( receive_curl_response ),
 
     { NULL, NULL }
 };
@@ -59,12 +78,15 @@ static void print_form( gpointer form_contents, gpointer ctr_ptr )
 	int          *counter = ctr_ptr;
 	GSList       *inputs;
 
-	printf( "%d: action = %s\n", *counter, form->action );
-	printf( "%d: name   = %s\n", *counter, form->name );
-	printf( "%d: value  = %s\n", *counter, form->value );
+	if( form != NULL )
+	{
+		printf( "%d: action = %s\n", *counter, form->action );
+		printf( "%d: name   = %s\n", *counter, form->name );
+		printf( "%d: value  = %s\n", *counter, form->value );
 
-	inputs = form->input_fields;
-	g_slist_foreach( inputs, print_input, counter );
+		inputs = form->input_fields;
+		g_slist_foreach( inputs, print_input, counter );
+	}
 
 	(*counter)++;
 }
@@ -94,6 +116,113 @@ static void test__get_forms( const char *param )
 	forms = get_forms( html_buf );
 	ctr = 1;
 	g_slist_foreach( forms, print_form, &ctr );
+}
 
+
+
+static void test__search_input_by_name( const char *param )
+{
+	gchar         *input_names[ ] = { "name1", "name2", "name3", NULL };
+	input_field_t input1          = { .name = "name2", .value = "value2" };
+	input_field_t input2          = { .name = "name3", .value = "value3" };
+	input_field_t input4          = { .name = "name4", .value = "value4" };
+	int found;
+
+	found = search_input_by_name( &input1, input_names );
+	printf( "1: %d\n", found );
+	found = search_input_by_name( &input2, input_names );
+	printf( "2: %d\n", found );
+	found = search_input_by_name( &input4, input_names );
+	printf( "3: %d\n", found );
+}
+
+
+
+static void test__search_form_by_action_and_inputs( const char *param )
+{
+	input_field_t input1 = { "in1", "ivalue1" };
+	input_field_t input2 = { "in2", "ivalue2" };
+	input_field_t input3 = { "in3", "ivalue3" };
+	GSList        *input;
+
+	form_field_t form1 = { "form1", "value1", "action1", NULL };
+
+	const gchar *search1[ ] = { "in1", NULL };
+	const gchar *search2[ ] = { "in4", NULL };
+	const gchar *search3[ ] = { "in2", NULL };
+	struct form_search_t search_form1 = { "action1", search1 };
+	struct form_search_t search_form2 = { "act", search2 };
+	struct form_search_t search_form3 = { "action4", search3 };
+
+	int found;
+
+	input = g_slist_append( NULL, &input1 );
+	input = g_slist_append( input, &input2 );
+	input = g_slist_append( input, &input3 );
+
+	form1.input_fields = input;
+	found = search_form_by_action_and_inputs( &form1, &search_form1 );
+	printf( "1: %d\n", found );
+	found = search_form_by_action_and_inputs( &form1, &search_form2 );
+	printf( "2: %d\n", found );
+	found = search_form_by_action_and_inputs( &form1, &search_form3 );
+	printf( "3: %d\n", found );
+}
+
+
+
+static void test__find_form( const char *param )
+{
+	FILE *filehd;
+	char *html_buf;
+	int    ctr;
+	form_field_t *form1;
+	form_field_t *form2;
+	const char *input_names[ ] = { "submit_access", "bgresponse", NULL };
+
+	html_buf = malloc( 75000 );
+
+	filehd = fopen( "../../data/oauth2-confirm.html", "r" );
+	if( ! filehd )
+	{
+		printf( "Error: cannot find test data\n" );
+		exit( EXIT_FAILURE );
+	}
+	if( fread( html_buf, 75000, 1, filehd ) )
+	{
+		printf( "Error: cannot read test data\n" );
+		exit( EXIT_FAILURE );
+	}
+
+	ctr = 1;
+	form1 = find_form( html_buf, "https://accounts.google.com/o/oauth2/approval?", input_names );
+	print_form( form1, &ctr );
+	form2 = find_form( html_buf, "https://accounts.google.com/o/oauth2/nonexistent", input_names );
+	if( form2 != NULL )
+	{
+		printf( "2: found\n" );
+	}
+	else
+	{
+		printf( "2: not found\n" );
+	}
+}
+
+
+
+static void test__receive_curl_response( const char *param )
+{
+	struct curl_write_buffer_t write_buffer = { NULL, 0 };
+	const char                 *testdata = "01234567891011121314151617181920";
+	size_t                     processed;
+
+	processed = receive_curl_response( testdata, 5, 3, &write_buffer );
+	printf( "1: %2d \"%s\"\n", (int) processed, write_buffer.data );
+
+	processed = receive_curl_response( &testdata[ 15 ], 10, 1, &write_buffer );
+	printf( "2: %2d \"%s\"\n", (int) processed, write_buffer.data );
+
+	processed = receive_curl_response( &testdata[ 25 ], 1, 3, &write_buffer );
+	printf( "3: %2d \"%s\"\n", (int) processed, write_buffer.data );
 }
 

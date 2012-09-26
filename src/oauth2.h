@@ -52,5 +52,32 @@ typedef struct
 } form_field_t;
 
 
+/* Structure used in auxiliary search functions to pass multiple values as
+   one parameter. */
+struct form_search_t
+{
+	const gchar        *form_action;
+	const gchar *const *input_names;
+};
+
+
+/* Define a custom data type that is passed by the CURL call-back for
+   writing data received from Google. */
+struct curl_write_buffer_t
+{
+    gchar *data;
+    gsize size;
+};
+
+
+/* Define a custom data type that is used by an g_slist_foreach call to
+   fill a form with input data. */
+struct curl_form_vars_t
+{
+	struct curl_httppost **login_form_post;
+	struct curl_httppost **last_post_data;
+};
+
+
 
 #endif /* __GTASKS_OAUTH2_H */

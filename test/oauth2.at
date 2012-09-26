@@ -37,3 +37,43 @@ AT_CHECK([grep 'input 2: name = _utf8, value = &#9731$' stdout], [], [ignore])
 AT_CHECK([grep 'input 2: name = state_wrapper, value = CvMBcmVz.\+NDE5Njc$' stdout], [], [ignore])
 AT_CHECK([grep 'input 2: name = submit_access, value = false$' stdout], [], [ignore])
 AT_CLEANUP
+
+
+AT_SETUP([Search input element in named list])
+AT_CHECK([test-oauth2 search_input_by_name], [], [stdout])
+AT_CHECK([grep '^1: 0$' stdout], [], [ignore])
+AT_CHECK([grep '^2: 0$' stdout], [], [ignore])
+AT_CHECK([grep '^3: 1$' stdout], [], [ignore])
+AT_CLEANUP
+
+
+AT_SETUP([Search form in forms list])
+AT_CHECK([test-oauth2 search_form_by_action_and_inputs], [], [stdout])
+AT_CHECK([grep '^1: 0$' stdout], [], [ignore])
+AT_CHECK([grep '^2: 1$' stdout], [], [ignore])
+AT_CHECK([grep '^3: 1$' stdout], [], [ignore])
+AT_CLEANUP
+
+
+AT_SETUP([Find specific form in malformed HTML page])
+AT_CHECK([test-oauth2 find_form], [], [stdout])
+AT_CHECK([grep '^1: action = https://accounts.google.com/o/oauth2/approval.as=1b7d1e62482c65df.hl=da.xsrfsign=APsBz4gAA.\+KuQYiDBq5UE$' stdout], [], [ignore])
+AT_CHECK([grep '^1: name   = (null)$' stdout], [], [ignore])
+AT_CHECK([grep '^1: value  = (null)$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = approval_ui, value = 0$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = bgresponse, value = (null)$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = _utf8, value = &#9731$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = state_wrapper, value = CvMBcmVz.\+UwNDE5Njc$' stdout], [], [ignore])
+AT_CHECK([grep 'input 1: name = submit_access, value = true$' stdout], [], [ignore])
+AT_CHECK([grep '2: not found$' stdout], [], [ignore])
+AT_CLEANUP
+
+
+AT_SETUP([CURL write callback])
+AT_CHECK([test-oauth2 receive_curl_response], [], [stdout])
+AT_CHECK([grep '^1: 15 "012345678910111"$' stdout], [], [ignore])
+AT_CHECK([grep '^2: 10 "0123456789101112131415161"$' stdout], [], [ignore])
+AT_CHECK([grep '^3:  3 "0123456789101112131415161718"$' stdout], [], [ignore])
+AT_CLEANUP
+
+

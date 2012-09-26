@@ -100,7 +100,7 @@ PrintSoftwareLicense( const gchar *commandName )
  *         otherwise.
  */
 gboolean
-InitializeConfiguration(
+Initialize_Configuration(
     struct Configuration *configuration, int argc, const char *const *argv )
 {
     /* Use the stdopt library to parse long and short options. */

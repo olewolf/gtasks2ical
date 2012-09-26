@@ -23,7 +23,12 @@
 
 #include <config.h>
 #include <stdlib.h>
+#include <libxml/parser.h>
+#include <curl/curl.h>
 #include "gtasks2ical.h"
+
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-variable"
 
 
 static struct Configuration globalConfig;
@@ -39,8 +44,22 @@ static struct Configuration globalConfig;
 int
 main( int argc, char **argv )
 {
-    /* Initialize modules. */
-    InitializeConfiguration( &globalConfig, argc, (const char *const *)argv );
+	/* Initialize libxml. */
+	LIBXML_TEST_VERSION;
+	/* Initialize CURL. */
+	curl_global_init( CURL_GLOBAL_ALL );
+
+/*
+    Initialize_Configuration( &globalConfig, argc, (const char *const *)argv );
+*/
+
+/*
+	Google_Authenticate( "username", "password" );
+*/
+
+
+	curl_global_cleanup( );
+	xmlCleanupParser( );
 
 	exit( 0 );
 }

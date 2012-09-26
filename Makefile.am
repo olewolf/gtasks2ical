@@ -32,7 +32,7 @@ uninstall-hook:
 	rm -rf $(docdir)/changelog.gz; \
 	rmdir --ignore-fail-on-non-empty $(docdir)
 
-doxygen:
+doc:
 	@if [ "$(HAVE_DOXYGEN)" = "true" -a "$(HAVE_GRAPHVIZ)" = "true" ]; then \
 	    cd doc; make doxygen; \
 	else \
