@@ -1,4 +1,4 @@
-.TH GTASKS2ICAL 1 "September 25nd, 2012" "Ole Wolf"
+.TH GTASKS2ICAL 1 "September 27th, 2012" "Ole Wolf"
 
 .SH NAME
 gtasks2ical \- Conversion between Google Tasks and iCalendar format.
@@ -7,25 +7,74 @@ gtasks2ical \- Conversion between Google Tasks and iCalendar format.
 
 .B gtasks2ical
 .RI [ options ]
-.IR regexp
+.IR \fR[\fIregexp\fR]
+.IR directory\fR|\fIfile
 
 .SH DESCRIPTION
 .B gtasks2ical
-Does something
+connects to a Google account and converts the user's Google Tasks to either one multi-task iCalendar format file or one iCalendar file for each task, or vice versa.
 
 The standard form of the
 .B gtasks2ical
 command is
 
 .RS
-\fC\fBgtasks2ical\fR
-.I regexp
+\fC\fBgtasks2ical
+.RI [ options ]
+.RI [ regexp ]
+.IR directory\fR|\fIfile
 
 .RE
-This does something.
+This attempts to synchronize the Google Tasks with the tasks in the local file(s). Any Google Task that is newer than the corresponding task in the local file will be downloaded and written to the local file; and any task in a local file that is newer than the corresponding Google Task will be uploaded to Google.
+
+The Google Tasks are synchronized with a single file with multiple tasks if
+.I directory\fR|\fIfile
+specifies a file; otherwise a file for each Google Task is created in the specified directory.
+
+.B tasks2ical
+uses the default Google Task list if
+.I regexp
+is omitted. Otherwise
+.I regexp
+is a regular expression that specifies which Google Tasks lists should be used for the conversion.
+.B tasks2ical
+will produce local iCalendar files for each list. (This behavior is currently subject to change.)
 
 
 .SH OPTIONS
+
+.TP
+.PD 0
+.B \-d
+.TP
+.PD
+.B \-\-download
+Force a download from Google Task, overwriting the local file even if the local file is newer. By combining the option with the
+.I --task
+option, a specific task may be selected for download, keeping the remaining tasks in the local file intact.
+
+
+.TP
+.PD 0
+.B \-u
+.TP
+.PD
+.B \-\-upload
+Force a upload to Google Tasks, overwriting the Google Tasks if they are newer. By combining the option with the
+.I --task
+option, a specific task may be selected for upload, keeping the remaining Google tasks intact.
+
+
+.TP
+.PD 0
+.B \-t \fIEID
+.TP
+.PD
+.B \-\-task=\fIEID
+Specify that only the task with the specified EID should be considered for synchronization. The
+.I --task
+option may be specified multiple times, allowing multiple tasks to be synchronized while keeping the remaining tasks intact.
+
 
 .TP
 .PD 0
