@@ -1,6 +1,10 @@
 This README contains notes for packagers
 ----------------------------------------
 
+PLEASE NOTE: this code is currently under development and does not yet
+provide any useful functionality.
+
+
 Copyright: 2012 Ole Wolf <wolf@blazingangles.com>
 License: GPL-3+
 
@@ -86,10 +90,10 @@ in the top directory.
 
 The build requirements include the OpenSSL executable; this is not strictly
 a requirement for the build itself, but the cryptographic tests use OpenSSL
-for verification during "make check". There is no OpenSSL code in the aws-s3fs
-source or executable, however, as the GPL requirements would violate the
-OpenSSL license. To skip OpenSSL tests, configure the build with the following
-option:
+for verification during "make check". There is no OpenSSL code in the
+gtasks2ical source or executable, however, as the GPL requirements would
+violate the OpenSSL license. To skip OpenSSL tests, configure the build with
+the following option:
 
     $ ./configure --disable-openssltest
 
@@ -103,7 +107,7 @@ currently related to intentional NULL pointers.
 I intend to also check the code with rats, flawfinder, and pscan prior to
 a formal release. There currently are issues related to buffer overrun risks,
 but they are fairly easy to spot and in many cases are contained within the
-aws-s3fs code (that is, a location with a theoretical buffer overrun issue
+gtasks2ical code (that is, a location with a theoretical buffer overrun issue
 will receive input only from functions that are known to produce string output
 that is within the buffer size limits).
 
