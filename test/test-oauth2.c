@@ -255,6 +255,12 @@ static void test__read_url( const char *param )
 	CURL  *curl;
 	gchar *html;
 
+	/* Skip test if no internet access is available. */
+	if( test_check_internet( ) == FALSE )
+	{
+		exit( 77 );
+	}
+
 	curl = curl_easy_init( );
 	html = read_url( curl, "http://www.microsoft.com" );
 	curl_easy_cleanup( curl );
@@ -419,6 +425,12 @@ static void test__login_to_gmail( const char *param )
 
 	CURL *curl;
 	char *html;
+
+	/* Skip test if no internet access is available. */
+	if( test_check_internet( ) == FALSE )
+	{
+		exit( 77 );
+	}
 
 	/* Skip the test if the password file is not available. To enable the
 	   test, enter your own email and password in the "password" file in the

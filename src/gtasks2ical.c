@@ -22,7 +22,6 @@
 
 
 #include <config.h>
-#include <stdlib.h>
 #include <libxml/parser.h>
 #include <curl/curl.h>
 #include "gtasks2ical.h"
@@ -31,7 +30,7 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 
-static struct Configuration globalConfig;
+static struct configuration_t global_config;
 
 
 /**
@@ -44,14 +43,19 @@ static struct Configuration globalConfig;
 int
 main( int argc, char **argv )
 {
+	CURL *curl;
+
 	/* Initialize libxml. */
 	LIBXML_TEST_VERSION;
+
 	/* Initialize CURL. */
 	curl_global_init( CURL_GLOBAL_ALL );
+	curl = curl_easy_init( );
+	curl_easy_setopt( curl, CURLOPT_COOKIEFILE, "" );
+	curl_easy_setopt( curl, CURLOPT_COOKIESESSION, 1 );
 
-/*
-    Initialize_Configuration( &globalConfig, argc, (const char *const *)argv );
-*/
+	/* Setup command-line options and environment variable options. */
+    initialize_configuration( &global_config, argc, (const char *const *)argv );
 
 /*
 	Google_Authenticate( "username", "password" );
@@ -63,8 +67,3 @@ main( int argc, char **argv )
 
 	exit( 0 );
 }
-
-
-
-// gtasks2ical <listname-ereg> <ical-file>
-// ical2gtasks <listname-ereg> <ical-file>

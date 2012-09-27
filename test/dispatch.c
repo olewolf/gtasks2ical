@@ -30,6 +30,26 @@
 extern const struct dispatch_table_t dispatch_table[ ];
 
 
+/* Determine whether Internet access seems to be available. This enables the
+   test suite to skip tests that require internet access as necessary. */
+gboolean
+test_check_internet( void )
+{
+	int returncode;
+
+	returncode = system( "ping -c 1 -w 10 www.google.com" );
+	if( returncode == 0 )
+	{
+		return( TRUE );
+	}
+	else
+	{
+		return( FALSE );
+	}
+}
+
+
+
 /* Called with the name of the test script as the first argument and
    optional parameters as the second argument. */
 int

@@ -26,6 +26,7 @@
 #include <config.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <glib.h>
 
 
 #define DISPATCHENTRY( x ) { #x, test__##x }
@@ -36,6 +37,10 @@ struct dispatch_table_t
     const char *script;
     void (*function)( const char *parameters );
 };
+
+
+/* See if internet access is available. */
+gboolean test_check_internet( void );
 
 
 #endif /* __TESTFUNCTIONS_H */
