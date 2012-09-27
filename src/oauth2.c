@@ -38,20 +38,21 @@
 /**
  * Retrieve the names and values of all the input elements contained in an
  * HTML form node.
- * @param form_node [in] XML node of the form.
+ * @param parent_node [in] Parent XML node (e.g., a form node).
  * @return List of input fields.
  * Test: implied (test-oauth2.c: get_forms).
  */
 STATIC GSList*
-get_input_fields( const xmlNode *form_node )
+get_input_fields( const xmlNode *parent_node )
 {
 	const xmlNode *node;
 	GSList        *input_fields = NULL;
 	input_field_t *new_input_field;
 	xmlChar       *name;
 	xmlChar       *value;
+	GSList        *children_input_fields;
 
-	for( node = form_node->xmlChildrenNode; node; node = node->next )
+	for( node = parent_node->xmlChildrenNode; node; node = node->next )
 	{
 		if( node->type == XML_ELEMENT_NODE )
 		{
@@ -69,6 +70,13 @@ get_input_fields( const xmlNode *form_node )
 				input_fields = g_slist_append( input_fields, new_input_field );
 				xmlFree( name );
 				xmlFree( value );
+			}
+			else
+			{
+				/* For any other node name, investigate its child nodes. */
+				children_input_fields = get_input_fields( node );
+				input_fields = g_slist_concat( input_fields,
+											   children_input_fields );
 			}
 		}
 	}
@@ -128,8 +136,8 @@ get_form_fields( const xmlNode *node, GSList *form_fields )
 				xmlFree( form_name );
 				xmlFree( form_value );
 			}
-			/* Otherwise, if a form was not found, go to the next level of the
-			   xml structure. */
+			/* Otherwise, if a form was not found, descend to the next level
+			   of the xml structure. */
 			else
 			{
 				form_fields = get_form_fields( current_node->xmlChildrenNode,
@@ -257,17 +265,27 @@ search_input_by_name( gconstpointer input_ptr, gconstpointer input_names_ptr )
 	gint                idx           = 0;
 	gint                name_found    = 1;
 
+	/* If the names criteria list is empty, a name search is always
+	   successful. */
+	if( input_names[ idx ] == NULL )
+	{
+		name_found = 0;
+	}
 	/* Find out if the input element is named according to the list of input
 	   names. */
-	while( input_names[ idx ] )
+	else
 	{
-		/* Set the "found" flag if the name matches. */
-		if( g_strcmp0( input->name, input_names[ idx ] ) == 0 )
+		while( input_names[ idx ] )
 		{
-			name_found = 0;
-			break;
+			/* Set the "found" flag if the name matches. */
+			if( ( input->name != NULL ) && 
+				( g_strcmp0( input->name, input_names[ idx ] ) == 0 ) )
+			{
+				name_found = 0;
+				break;
+			}
+			idx++;
 		}
-		idx++;
 	}
 
 	return( name_found );
@@ -290,16 +308,38 @@ search_form_by_action_and_inputs( gconstpointer form_ptr,
 {
 	const form_field_t         *form      = form_ptr;
 	const struct form_search_t *search    = search_ptr;
+	gboolean                   form_name_match = FALSE;
 	GSList                     *input_fields;
 	GSList                     *input;
 	gint                       form_found = 1;
 	size_t                     max_action_chars;
 
-	max_action_chars = strlen( search->form_action );
-	if( strncmp( form->action, search->form_action, max_action_chars  ) == 0 )
+	/* Compare form names. Ignore the form name if it is not specified
+	   as a search criterion. */
+	if( search->form_action != NULL )
 	{
-		/* If the form action was found, determine whether the input fields
-		   match, too. */
+		/* The form name is a search criterion, so check if it matches. */
+		if( form->action != NULL )
+		{
+			max_action_chars = strlen( search->form_action );
+			if( strncmp( form->action, search->form_action,
+				 max_action_chars  ) == 0 )
+			{
+				form_name_match = TRUE;
+			}
+		}
+	}
+	/* If the form name doesn't matter, the form name will always be
+	   found. */
+	else
+	{
+		form_name_match = TRUE;
+	}
+	
+	/* If the form action was found, determine whether the input fields
+	   match, too. */
+	if( form_name_match )
+	{
 		input_fields = form->input_fields;
 		input = g_slist_find_custom( input_fields,
 									 (gconstpointer) search->input_names,
@@ -405,6 +445,7 @@ STATIC gchar*
 read_url( CURL *curl, const gchar *url )
 {
 	struct curl_write_buffer_t html_body = { NULL, 0 };
+	CURLcode errcode;
 
 	/* Receive the HTML body only, using receive_curl_response to store it
 	   in html_body. */
@@ -415,9 +456,13 @@ read_url( CURL *curl, const gchar *url )
 	/* Set the URL. */
 	curl_easy_setopt( curl, CURLOPT_URL, url );
 	/* Send the request, receiving the response in html_body. */
-	curl_easy_perform( curl );
+	errcode = curl_easy_perform( curl );
+	if( errcode != CURLE_OK )
+	{
+		fprintf( stderr, "Could not receive web page" );
+		exit( EXIT_FAILURE );
+	}
 	curl_easy_reset( curl );
-
 	return( html_body.data );
 }
 
@@ -431,6 +476,7 @@ read_url( CURL *curl, const gchar *url )
  * @param form_action [in] The form action.
  * @param input_names [in] List of names of input elements in the form.
  * @return Form data, or \a NULL if the form was not found.
+ * Test: unit test (test-oauth2.c: get_form_from_url).
  */
 STATIC form_field_t*
 get_form_from_url( CURL* curl, const gchar *url, const gchar *form_action,
@@ -458,6 +504,7 @@ get_form_from_url( CURL* curl, const gchar *url, const gchar *form_action,
  * @param form_ptr [out] Pointer to the form whose input elements should be
  *        modified.
  * @return Nothing.
+ * Test: unit test (test-oauth.c: modify_form_inputs).
  */
 STATIC void
 modify_form_inputs( gpointer input_ptr, gpointer form_ptr )
@@ -474,6 +521,7 @@ modify_form_inputs( gpointer input_ptr, gpointer form_ptr )
 	search_entry = g_slist_find_custom( form->input_fields,
 									   (gconstpointer) input_names,
 									   search_input_by_name );
+
 	/* Modify the input's value. */
 	if( search_entry != NULL )
 	{
@@ -489,6 +537,23 @@ modify_form_inputs( gpointer input_ptr, gpointer form_ptr )
 		new_input->value = g_strdup( input_field->value );
 		form->input_fields = g_slist_append( form->input_fields, new_input );
 	}
+}
+
+
+
+/**
+ * Update input elements in a form with new data, or add new input elements
+ * in case they do not exist.
+ * @param form [in/out] Form containing input elements that should be modified.
+ * @param inputs_to_modify [in] List of input elements with new data.
+ * @return Nothing.
+ * Test: unit test (test-oauth2.c: modify_form).
+ */
+STATIC void
+modify_form( form_field_t *form, const GSList *inputs_to_modify )
+{
+	/* Update the form's input elements. */
+	g_slist_foreach( (GSList*)inputs_to_modify, modify_form_inputs, form );
 }
 
 
@@ -521,27 +586,12 @@ fill_form_with_input( gpointer input_field_ptr, gpointer form_vars_ptr )
 
 
 /**
- * Update input elements in a form with new data, or add new input elements
- * in case they do not exist.
- * @param form [in/out] Form containing input elements that should be modified.
- * @param inputs_to_modify [in] List of input elements with new data.
- * @return Nothing.
- */
-STATIC void
-modify_form( form_field_t *form, const GSList *inputs_to_modify )
-{
-	/* Update the form's input elements. */
-	g_slist_foreach( (GSList*)inputs_to_modify, modify_form_inputs, form );
-}
-
-
-
-/**
  * Submit a form according to its \a action attribute, and receive the response
  * from the host.
  * @param curl [in/out] CURL handle.
  * @param form [in] Form that should be submitted.
  * @return Raw HTML response, or \a NULL if the form could not be submitted.
+ * Test: smoke test (test-oauth2.c: post_form).
  */
 STATIC gchar*
 post_form( CURL *curl, const form_field_t *form )
@@ -574,6 +624,9 @@ post_form( CURL *curl, const form_field_t *form )
 	curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, receive_curl_response );
 	curl_easy_setopt( curl, CURLOPT_HEADERDATA, NULL );
 	curl_easy_setopt( curl, CURLOPT_HEADERFUNCTION, NULL );
+	/* We're going to be redirected several times during the login. */
+	curl_easy_setopt( curl, CURLOPT_FOLLOWLOCATION, 1 );
+	curl_easy_setopt( curl, CURLOPT_UNRESTRICTED_AUTH, 1 );
 	/* Set the URL. */
 	form_action = form->action;
 	curl_easy_setopt( curl, CURLOPT_URL, form_action );
@@ -584,21 +637,20 @@ post_form( CURL *curl, const form_field_t *form )
 	curl_formfree( form_post );
 	curl_slist_free_all( curl_headers );
 	curl_easy_reset( curl );
-
 	return( html_body.data );
 }
 
 
 
 /**
- * Login to Google Tasks.  This function obtains the token required to
- * access the Google Tasks.
+ * Login to Gmail.  This function attempts to pass the first part of the
+ * login where the user is requested to enter his/her username and password.
  * @param username [in] The user's Google username (username@gmail.com).
  * @param password [in] The user's Google password.
- * @return Access token, or \a NULL if the login failed.
+ * @return HTTP response, or \a NULL if the login failed.
  */
 gchar*
-login_to_tasks( CURL *curl, const gchar *username, const gchar *password )
+login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
 {
 	const gchar   *login_url = "https://accounts.google.com/ServiceLogin?"
 		"passive=true&rm=false&"
@@ -621,8 +673,6 @@ login_to_tasks( CURL *curl, const gchar *username, const gchar *password )
 	g_slist_free( inputs_to_modify );
 	/* Submit the login form. */
 	login_response = post_form( curl, login_form );
-
-
 	return( login_response );
 }
 

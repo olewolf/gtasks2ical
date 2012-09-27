@@ -80,4 +80,11 @@ struct curl_form_vars_t
 
 
 
+/* Login to the user's Gmail account, keeping the login state in the CURL
+   session. */
+gchar* login_to_gmail( CURL *curl, const gchar *username,
+					   const gchar *password );
+
+
+
 #endif /* __GTASKS_OAUTH2_H */

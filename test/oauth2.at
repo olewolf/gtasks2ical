@@ -88,3 +88,33 @@ AT_CHECK([grep '<title>' stdout], [], [ignore])
 AT_CLEANUP
 
 
+AT_SETUP([Find form on web page])
+AT_CHECK([test-oauth2 get_form_from_url], [], [stdout])
+AT_CHECK([grep '^1: action = https://accounts.google.com/ServiceLoginAuth$' stdout], [], [ignore])
+AT_CHECK([grep '^input 1: name = signIn, value = Sign in$' stdout], [], [ignore])
+AT_CLEANUP
+
+
+AT_SETUP([Modify single input element in a form])
+AT_CHECK([test-oauth2 modify_form_inputs], [], [stdout])
+AT_CHECK([grep '^input 1: name = dsh, value = test1$' stdout], [], [ignore])
+AT_CHECK([grep '^input 1: name = new, value = test2$' stdout], [], [ignore])
+AT_CLEANUP
+
+
+AT_SETUP([Modify multiple input elements in a form])
+AT_CHECK([test-oauth2 modify_form_inputs], [], [stdout])
+AT_CHECK([grep '^input 1: name = dsh, value = test1$' stdout], [], [ignore])
+AT_CHECK([grep '^input 1: name = new, value = test2$' stdout], [], [ignore])
+AT_CLEANUP
+
+
+AT_SETUP([Login to Gmail (requires internet access and password file)])
+AT_CHECK([test-oauth2 login_to_gmail], [], [stdout])
+AT_CHECK([grep '^<!DOCTYPE html' stdout], [], [ignore])
+AT_CHECK([grep '<title>Gmail</title>' stdout], [], [ignore])
+AT_CHECK([grep 'var GM_APP_NAME="Gmail";' stdout], [], [ignore])
+AT_CHECK([grep '</body></html>' stdout], [], [ignore])
+AT_CLEANUP
+
+

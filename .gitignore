@@ -34,8 +34,9 @@ src/gtasks2ical
 
 test/atconfig
 test/atlocal
-test/test-someexecutable
 test/testsuite
 test/testsuite.log
 test/testsuite.at
+test/testsuite.dir/*
 test/test-oauth2
+test/password

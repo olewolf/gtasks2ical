@@ -9,7 +9,7 @@ fi
 # Clean up the directory.
 if [ -f Makefile ]; then
     make distclean
-elif [ -f src/aws-s3fs ]; then
+elif [ -f src/gtasks2ical ]; then
     make clean
 fi
 find -name \*~ -delete
@@ -19,5 +19,5 @@ DIR=`basename $PWD`
 PACKAGE=`echo ${DIR} | sed -n "s/-\([0-9]\+\.[0-9]\+\)//p"`
 VERSION=`echo ${DIR} | sed -n "s/${PACKAGE}-\([0-9]\+\.[0-9]\+\)/\1/p"`
 cd ..
-tar -cjhf ${PACKAGE}_${VERSION}.orig.tar.xz --auto-compress --exclude=${DIR}/debian/* --exclude=${DIR}/.git/* --exclude=${DIR}/.gitignore ${DIR}
+tar -cjhf ${PACKAGE}_${VERSION}.orig.tar.xz --auto-compress --exclude=${DIR}/debian/* --exclude=${DIR}/.git/* --exclude=${DIR}/.gitignore --exclude=test/data/password ${DIR}
 
