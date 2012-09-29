@@ -1,0 +1,70 @@
+.TH GTASKS2ICAL.CONF 5 "September 29th, 2012" "Ole Wolf"
+
+.SH NAME
+${sysconfdir}/gtasks2ical.conf \- Configuration file for
+.B gtasks2ical(1)\fP.
+
+.SH DESCRIPTION
+The file
+.I ${sysconfdir}/gtasks2ical.conf
+contains system-wide defaults for the program 
+.B gtasks2ical\fP.
+
+Each line holds a single value pair in the form:
+
+.IR option " = " value
+
+Whitespace is allowed around the equals sign. Comment lines must have a hash sign (#) in the first column.
+
+Value pairs are organized in sections. The configuration file currently supports only one section, which must be present: the
+.I [global]
+section, which contains system-wide configuration options.
+
+Each user may override the settings in
+.I ${sysconfdir}/gtasks2ical.conf
+with custom settings by editing the file
+.I ~/.gtasks2icalrc
+in the user's home directory. The file format of
+.I ~/.tasks2icalrc
+is identical to that of
+.I ${sysconfdir}/gtasks2ical.conf\fR,
+except that the
+.I [global]
+section should be named
+.I [local]
+instead.
+
+The valid configuration options are:
+
+.TP
+\fBclient id\fP
+Your Google Developer Client ID. You may obtain this ID via
+.I https://code.google.com/apis/console
+where you register your application as a device.
+
+
+.TP
+\fBgmail user\fP
+Your Gmail login username, which is of the form "yourname@gmail.com".
+
+
+.TP
+\fBgmail password\fP
+Your Gmail login password.
+
+
+.TP
+\fBipv4 only\fP
+Disable IPv6 connections, using IPv4 connections only.
+Must be either
+.I true
+or
+.I false.
+
+
+.SH FILES
+.I ${sysconfdir}/gtasks2ical.conf\fR,
+.I ~/.gtasks2icalrc
+
+.SH SEE ALSO
+gtasks2ical(1)

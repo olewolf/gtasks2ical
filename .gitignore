@@ -29,6 +29,7 @@ debian/tmp/*
 
 doc/doxygen
 doc/main.doc
+doc/man/*.?
 
 src/gtasks2ical
 
@@ -39,4 +40,4 @@ test/testsuite.log
 test/testsuite.at
 test/testsuite.dir/*
 test/test-oauth2
-test/password
+test/data/password

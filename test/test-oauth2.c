@@ -34,6 +34,8 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
+struct configuration_t global_config;
+
 extern int search_input_by_name( gconstpointer input_ptr,
 								 gconstpointer input_names_ptr );
 extern GSList *get_forms( const gchar *raw_html_page );
@@ -422,9 +424,9 @@ static void test__login_to_gmail( const char *param )
 	FILE *filehd;
 	char username[ 100 ];
 	char password[ 100 ];
-
 	CURL *curl;
-	char *html;
+
+	global_config.ipv4_only = TRUE;
 
 	/* Skip test if no internet access is available. */
 	if( test_check_internet( ) == FALSE )
@@ -446,15 +448,6 @@ static void test__login_to_gmail( const char *param )
 	curl = curl_easy_init( );
 	curl_easy_setopt( curl, CURLOPT_COOKIESESSION, 1 );
 	curl_easy_setopt( curl, CURLOPT_COOKIEFILE, "cookies.txt" );
-	html = login_to_gmail( curl, username, password );
+	(void)login_to_gmail( curl, username, password );
 	curl_easy_cleanup( curl );
-
-	if( html != NULL )
-	{
-		printf( "%s\n", html );
-	}
-	else
-	{
-		printf( "No response received from Google\n" );
-	}
 }

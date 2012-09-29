@@ -17,7 +17,7 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = src doc test
+SUBDIRS = src doc test data
 
 metadocsdir = $(docdir)
 nobase_dist_metadocs_DATA = README NEWS AUTHORS ChangeLog

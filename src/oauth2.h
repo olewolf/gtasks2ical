@@ -36,8 +36,8 @@
    of an HTML input tag. */
 typedef struct
 {
-    gchar *name;
-    gchar *value;
+	gchar *name;
+	gchar *value;
 } input_field_t;
 
 
@@ -65,25 +65,28 @@ struct form_search_t
    writing data received from Google. */
 struct curl_write_buffer_t
 {
-    gchar *data;
-    gsize size;
+	gchar *data;
+	gsize size;
 };
 
 
-/* Define a custom data type that is used by an g_slist_foreach call to
-   fill a form with input data. */
-struct curl_form_vars_t
+/* Define a custom data type that is used by a JSON foreach callback to
+   decode the initial OAuth2 response. */
+struct initial_oauth2_t
 {
-	struct curl_httppost **form_post;
-	struct curl_httppost **last_post_data;
+	const gchar *device_code;
+	const gchar *user_code;
+	const gchar *verification_url;
 };
 
 
 
 /* Login to the user's Gmail account, keeping the login state in the CURL
    session. */
-gchar* login_to_gmail( CURL *curl, const gchar *username,
-					   const gchar *password );
+gboolean login_to_gmail( CURL *curl, const gchar *username,
+						 const gchar *password );
+/* Get the device code. */
+gchar *obtain_device_code( CURL *curl, const gchar *client_id );
 
 
 

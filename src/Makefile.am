@@ -15,12 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#AM_CFLAGS = -O2 -g
-AM_CFLAGS = -O0 -g
+#AM_CFLAGS = -O2 -g -DSYSCONFDIR=${sysconfdir}
+AM_CFLAGS = -O0 -g -DSYSCONFDIR=${sysconfdir}
 
 bin_PROGRAMS = gtasks2ical
 
-HDR = config.h gtasks2ical.h
+HDR = config.h gtasks2ical.h oauth2.h
 
 gtasks2ical_SOURCES = $(HDR) gtasks2ical.c initializeconfig.c oauth2.c
 

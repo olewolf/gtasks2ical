@@ -31,7 +31,7 @@ The Google Tasks are synchronized with a single file with multiple tasks if
 .I directory\fR|\fIfile
 specifies a file; otherwise a file for each Google Task is created in the specified directory.
 
-.B tasks2ical
+.B gtasks2ical
 uses the default Google Task list if
 .I regexp
 is omitted. Otherwise
@@ -39,6 +39,14 @@ is omitted. Otherwise
 is a regular expression that specifies which Google Tasks lists should be used for the conversion.
 .B tasks2ical
 will produce local iCalendar files for each list. (This behavior is currently subject to change.)
+
+By default,
+.B tasks2ical
+first reads a default configuration from ${sysconfdir}/gtasks2ical.conf (if it exists), Next, it reads the user's local configuration from ~/.gtasks2icalrc, overriding any values previously set with those just read.
+
+If an alternative configuration file is specified as a command-line option (see
+.I options,
+below), the alternative configuration file overrides both default files. Finally, any command-line options override any values set by any of the configuration files.
 
 
 .SH OPTIONS
@@ -74,6 +82,26 @@ option, a specific task may be selected for upload, keeping the remaining Google
 Specify that only the task with the specified EID should be considered for synchronization. The
 .I --task
 option may be specified multiple times, allowing multiple tasks to be synchronized while keeping the remaining tasks intact.
+
+
+.TP
+.PD 0
+.B \-c \fconfigfile
+.TP
+.PD
+.B \-\-task=\fconfigfile
+Use the file
+.I configfile
+as a configuration file that overrides ${sysconfdir}/gtasks2ical.conf and ~/gtasks2icalrc.
+
+
+.TP
+.PD 0
+.B \-4
+.TP
+.PD
+.B \-\-ipv4only
+Disable IPv6, using IPv4 addresses only. This is useful when Google's servers support IPv6 but the routers between Google's servers and your host refuse to serve IPv6 traffic. This will cause timeouts that slow down the synchronization.
 
 
 .TP
@@ -117,6 +145,10 @@ Print the version of
 .B gtasks2ical
 and exit.
 
+
+.SH FILES
+.I $(sysconfdir)/gtasks2ical.conf\fR,
+.I ~/.gtasks2icalrc
 
 .SH COPYRIGHT
 

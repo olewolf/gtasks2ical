@@ -85,12 +85,15 @@ AC_CHECK_LIB([xml2], [xmlReadMemory],,
     AC_MSG_ERROR([*** libxml2 library not found **]))
 AC_CHECK_LIB([tidy], [tidyCreate],,
     AC_MSG_ERROR([*** libtidy library not found **]))
+AC_CHECK_LIB([json-glib-1.0], [json_parser_new],,
+    AC_MSG_ERROR([*** libjson-glib library not found **]))
 
 PKG_CHECK_MODULES([libconfig], [libconfig >= 1.3],, AC_MSG_ERROR([*** libconfig not found **]))
 PKG_CHECK_MODULES([libical], [libical >= 0.48],, AC_MSG_ERROR([*** libical not found **]))
 PKG_CHECK_MODULES([libcurl], [libcurl >= 7.20],, AC_MSG_ERROR([*** libcurl not found **]))
 PKG_CHECK_MODULES([libxml2], [libxml-2.0 >= 2.7.0],, AC_MSG_ERROR([*** libxml2 not found **]))
 PKG_CHECK_MODULES([glib2], [glib-2.0 >= 2.30.0],, AC_MSG_ERROR([*** glib-2.0 not found **]))
+PKG_CHECK_MODULES([jsonglib], [json-glib-1.0 >= 0.14.2],, AC_MSG_ERROR([*** json-glib-1.0 not found **]))
 
 # Check for library functions.
 AC_CHECK_FUNCS([getopt_long],,
@@ -129,9 +132,14 @@ AC_CHECK_HEADER([curl/curl.h],,
     AC_MSG_ERROR([*** curl.h not found **]))
 AC_CHECK_HEADER([tidy/tidy.h],,
     AC_MSG_ERROR([*** tidy.h not found **]))
-CFLAGS="$CFLAGS -Wall -Werror $libconfig_CFLAGS $libical_CFLAGS $libcurl_CFLAGS $libxml2_CFLAGS $glib2_CFLAGS"
+CFLAGS="$CFLAGS -Wall -Werror $libconfig_CFLAGS $libical_CFLAGS $libcurl_CFLAGS $libxml2_CFLAGS $glib2_CFLAGS $jsonglib_CFLAGS"
 AC_CHECK_HEADER([glib-2.0/glib.h], [], 
 AC_MSG_ERROR([*** glib-2.0/glib.h not found **]),
+[
+AC_INCLUDES_DEFAULT
+])
+AC_CHECK_HEADER([json-glib/json-glib.h], [], 
+AC_MSG_ERROR([*** json-glib.h not found **]),
 [
 AC_INCLUDES_DEFAULT
 ])
@@ -142,7 +150,7 @@ AC_INCLUDES_DEFAULT
 ])
 
 AC_DEFINE([_GNU_SOURCE], [], [Use GNU extensions])
-LIBS="$libconfig_LIBS $libical_LIBS $libcurl_LIBS $libxml2_LIBS $glib2_LIBS -ltidy"
+LIBS="$libconfig_LIBS $libical_LIBS $libcurl_LIBS $libxml2_LIBS $glib2_LIBS -ltidy $jsonglib_LIBS"
 
 MAKE_DOXYGEN=false
 if @<:@ "x$ac_enable_doc" = "xyes" @:>@; then
@@ -170,7 +178,7 @@ AM_CONDITIONAL(MAKE_OPENSSL_TESTS,$MAKE_OPENSSL_TESTS)
 
 # Output files.
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile src/Makefile doc/Makefile doc/man/Makefile test/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile data/Makefile doc/Makefile doc/man/Makefile test/Makefile])
 AC_OUTPUT([doc/main.doc])
 
 AC_MSG_NOTICE([
