@@ -323,3 +323,68 @@ obtain_device_code( CURL *curl, const gchar *client_id )
 }
 
 
+
+
+STATIC gboolean
+submit_approval_form( CURL *curl, const gchar *approval_page )
+{
+	form_field_t       *approval_form;
+	const gchar *const approval_names[ ] = { "submit_access", NULL };
+	gchar              *form_response;
+	gboolean           success;
+
+	approval_form = find_form( approval_page,
+						"https://accounts.google.com/o/oauth2/",
+					    approval_names );
+	if( approval_form != NULL )
+	{
+		g_printf( "Submitting approval form\n" );
+
+		/* Submit the approval form. */
+		form_response = post_form( curl, approval_form );
+
+		destroy_form( approval_form );
+		g_free( form_response );
+		success = TRUE;
+	}
+	else
+	{
+		success = FALSE;
+	}
+
+	return( success );
+}
+
+
+
+
+
+		/* As of October 1, 2012, there is a bug in Google's authentication
+		   API that prevents devices from accessing the Tasks scope.  To
+		   work around this, determine whether an access token is required. */
+		if( user_code->verification_url != NULL )
+		{
+			success = FALSE;
+
+            /* Submit the user code at the verification URL. */
+			user_code_form = get_form_from_url( curl,
+												user_code->verification_url,
+							"https://accounts.google.com/o/oauth2/device/auth",
+							user_code_names );
+			if( user_code_form != NULL )
+			{
+				enter_code.value = (gchar*) user_code->user_code;
+				input_list = g_slist_append( NULL, &enter_code );
+				modify_form( user_code_form, input_list );
+				g_slist_free( input_list );
+				form_response = post_form( curl, user_code_form );
+				destroy_form( user_code_form );
+
+				/* The response from the verification URL is page where the
+				   user is requested to authorize the application to access the
+				   user's data.  Find the approval form and submit it. */
+				g_printf( "Locating approval form\n" );
+				success = submit_approval_form( curl, form_response );
+				g_free( form_response );
+			}
+		}

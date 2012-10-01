@@ -1,6 +1,6 @@
 /**
- * \file oauth2.h
- * \brief Definitions for OAuth2.
+ * \file oauth2-google.h
+ * \brief Definitions for Google's OAuth2.
  *
  * Copyright (C) 2012 Ole Wolf <wolf@blazingangles.com>
  *
@@ -23,13 +23,15 @@
 #ifndef __GTASKS_OAUTH2_H
 #define __GTASKS_OAUTH2_H
 
-
 #include <config.h>
 #include <glib.h>
 
 
-/* URL for submitting an approval form. */
+/* URLs for submitting requests.. */
+#define GOOGLE_GMAIL_LOGIN "https://accounts.google.com/ServiceLogin"
+#define GOOGLE_OAUTH2_DEVICECODE "https://accounts.google.com/o/oauth2/auth"
 #define GOOGLE_OAUTH2_APPROVAL "https://accounts.google.com/o/oauth2/approval"
+#define GOOGLE_OAUTH2_TOKEN "https://accounts.google.com/o/oauth2/token"
 
 
 /* The input_field_t structure contains the name and value attribute contents
@@ -80,6 +82,8 @@ struct user_code_t
 };
 
 
+/* Custom data type containing the access token, the refresh token, and the
+   timeout timestamp of the access token. */
 typedef struct
 {
 	gchar  *access_token;
@@ -92,16 +96,8 @@ typedef struct
    session. */
 gboolean login_to_gmail( CURL *curl, const gchar *username,
 						 const gchar *password );
-
-void authorize_application( CURL *curl );
-
-
-/* Get a device code. */
-//gchar *obtain_device_code( CURL *curl, const gchar *client_id );
-/* Get an access code. */
-//access_code_t *obtain_access_code( CURL *curl, const gchar *device_code,
-//								   const gchar *client_id,
-//								   const gchar *client_password );
+/* Authorize the application to access the user's Google Tasks. */
+access_code_t *authorize_application( CURL *curl );
 
 
 

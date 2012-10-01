@@ -45,6 +45,9 @@
 	}
 
 
+/* Container for a generic callback function and its associated user data
+   which is used by the \a decode_json_foreach_wrapper function to decode
+   a JSON response. */
 struct json_wrapper_t
 {
 	void     (*function)( const gchar *member_name,
@@ -54,7 +57,9 @@ struct json_wrapper_t
 };
 
 
+/* Global configuration data. */
 extern struct configuration_t global_config;
+
 
 
 /**
@@ -656,7 +661,9 @@ post_form( CURL *curl, const form_field_t *form )
 	form_action = form->action;
 
 	/*  Post the form using receive_curl_response to store the reply. */
+    /*
 	curl_easy_setopt( curl, CURLOPT_VERBOSE, 1 );
+	*/
 	if( global_config.ipv4_only == TRUE )
 	{
 		curl_easy_setopt( curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
@@ -760,11 +767,9 @@ gboolean
 login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
 {
 	static const gchar *login_url =
-		"https://accounts.google.com/ServiceLogin?"
-		"passive=true&rm=false&"
-		"continue=https://mail.google.com/mail/";
-	static const gchar *login_action =
-		"https://accounts.google.com/ServiceLoginAuth";
+		GOOGLE_GMAIL_LOGIN "?"
+		"passive=true&rm=false&continue=https://mail.google.com/mail/";
+	static const gchar *login_action = GOOGLE_GMAIL_LOGIN;
 	static const gchar *login_inputs[ ] = { "Email", "Passwd", NULL };
 	form_field_t       *login_form;
 	GSList             *inputs_to_modify;
@@ -817,6 +822,16 @@ login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
 
 
 
+/**
+ * Auxiliary function for \a decode_json_reply which invokes the custom
+ * JSON decoder function.
+ * @param node [in] Unused.
+ * @param member_name [in] The name of the JSON node.
+ * @param member_node [in] JSON node with data.
+ * @param json_wrapper_ptr [in/out] Pointer to a json_wrapper_t structure
+ *        that contains the custom JSON decoder function and the user data.
+ * @return Nothing.
+ */
 STATIC void
 decode_json_foreach_wrapper( JsonObject *node, const gchar *member_name,
 							 JsonNode *member_node, gpointer json_wrapper_ptr )
@@ -832,6 +847,14 @@ decode_json_foreach_wrapper( JsonObject *node, const gchar *member_name,
 
 
 
+/**
+ * Decode a JSON response using a custom decoder function that parses the
+ * the JSON-encoded values one at a time.
+ * @param json_doc [in] JSON-encoded document.
+ * @param json_decoder [in] Custom decoder function.
+ * @param user_data [in/out] User data to pass to the custom decoder function.
+ * @return Nothing.
+ */
 STATIC void
 decode_json_reply( const gchar *json_doc,
 				   void (*json_decoder)( const gchar *member_name,
@@ -860,6 +883,14 @@ decode_json_reply( const gchar *json_doc,
 
 
 
+/**
+ * Custom JSON parser for an access token reply.
+ * @param member_name [in] Name of the JSON node.
+ * @param member_node [in] JSON node.
+ * @param access_ptr [out] Pointer to an \a access_code_t structure where
+ *        the output is stored.
+ * @return Nothing.
+ */
 STATIC void
 parse_tokens_json( const gchar *member_name,
 				   JsonNode *member_node, gpointer access_ptr )
@@ -891,15 +922,13 @@ parse_tokens_json( const gchar *member_name,
 struct user_code_t*
 obtain_device_code( CURL *curl, const gchar *client_id )
 {
-	static const gchar *endpoint     =
-		"https://accounts.google.com/o/oauth2/auth";
+	static const gchar *endpoint     = GOOGLE_OAUTH2_DEVICECODE;
 	static const gchar *redirect_uri = "urn:ietf:wg:oauth:2.0:oob";
 	static const gchar *scope        = "https://www.googleapis.com/auth/tasks";
 	gchar              *request_url;
 
 	form_field_t       *authorization_form;
-	static const gchar *auth_form_action =
-		"https://accounts.google.com/o/oauth2/approval";
+	static const gchar *auth_form_action = GOOGLE_OAUTH2_APPROVAL;
 	static const gchar *auth_input_names[ ] = { "submit_access", NULL };
 	gchar              *auth_response;
 	GRegex             *code_regex;
@@ -944,15 +973,29 @@ obtain_device_code( CURL *curl, const gchar *client_id )
 
 
 
+/**
+ * Request access and refresh tokens.  If the device_code does not include
+ * a redirection URL then request the tokens as an application.
+ * @param curl [in/out] CURL handle.
+ * @param device_code [in] Device code.
+ * @param client_id [in] Application/device Client ID.
+ * @param client_id [in] Application/device Client secret.
+ * @param is_device_request [in] If \a TRUE, specify that the application
+ *        represents a device; if \a FALSE, the application specifies a web
+ *        application.
+ * @return An \a access_code_t structure with access and refresh tokens and
+ *         token timeout timestamp.
+ */
 STATIC access_code_t*
 obtain_access_code( CURL *curl, const gchar *device_code,
-					const gchar *client_id, const gchar *client_secret )
+					const gchar *client_id, const gchar *client_secret,
+					gboolean is_device_request )
 {
 	form_field_t request_form =
 	{
 		.name = NULL,
 		.value = NULL,
-		.action = "https://accounts.google.com/o/oauth2/token",
+		.action = GOOGLE_OAUTH2_TOKEN,
 		.input_fields = NULL
 	};
 	gchar         *token_response;
@@ -962,8 +1005,19 @@ obtain_access_code( CURL *curl, const gchar *device_code,
 	add_input_to_form( &request_form, "code", device_code );
 	add_input_to_form( &request_form, "client_id", client_id );
 	add_input_to_form( &request_form, "client_secret", client_secret );
-	add_input_to_form( &request_form, "grant_type",
-					   "http://oauth.net/grant_type/device/1.0" );
+	/* Make either a device request or an application request. */
+	if( is_device_request == TRUE )
+	{
+		add_input_to_form( &request_form, "grant_type",
+						   "http://oauth.net/grant_type/device/1.0" );
+	}
+	else
+	{
+		add_input_to_form( &request_form, "redirect_uri",
+						   "urn:ietf:wg:oauth:2.0:oob" );
+		add_input_to_form( &request_form, "grant_type", "authorization_code" );
+	}
+
 	/* Request the authorization code. */
 	token_response = post_form( curl, &request_form );
 	destroy_form_inputs( &request_form );
@@ -987,42 +1041,15 @@ obtain_access_code( CURL *curl, const gchar *device_code,
 
 
 
-STATIC gboolean
-submit_approval_form( CURL *curl, const gchar *approval_page )
-{
-	form_field_t       *approval_form;
-	const gchar *const approval_names[ ] = { "submit_access", NULL };
-	gchar              *form_response;
-	gboolean           success;
-
-	approval_form = find_form( approval_page,
-						"https://accounts.google.com/o/oauth2/",
-					    approval_names );
-	if( approval_form != NULL )
-	{
-		g_printf( "Submitting approval form\n" );
-
-		/* Submit the approval form. */
-		form_response = post_form( curl, approval_form );
-
-		destroy_form( approval_form );
-		g_free( form_response );
-		success = TRUE;
-	}
-	else
-	{
-		success = FALSE;
-	}
-
-	return( success );
-}
-
-
-
 /**
- *
+ * Authorize the application to access the user's Google data.  This function
+ * requires the user to have been logged in to Google already via the CURL
+ * handle that is passed to the function.
+ * @param curl [in] CURL handle of a CURL session that includes a Google login.
+ * @return An \a access_token_t structure with access and refresh tokens, and
+ *         their timeout timestamp.
  */
-void
+access_code_t*
 authorize_application( CURL *curl )
 {
 	struct user_code_t *user_code;
@@ -1034,63 +1061,30 @@ authorize_application( CURL *curl )
 	access_code_t      *access_code;
 	gboolean           success;
 
+
+	success     = FALSE;
+	access_code = NULL;
+
 	/* Obtain a device code, a user code, and the verification URL. */
 	user_code = obtain_device_code( curl, global_config.client_id );
 	if( user_code != NULL )
 	{
 		g_printf( "User code obtained.\n" );
-		/* As of October 1, 2012, there is a bug in Google's authentication
-		   API that prevents devices from accessing the Tasks scope.  To
-		   work around this, determine whether an access token is required. */
+		success = TRUE;
 
-		/* No access token is required; the application is already
-		   authorized. */
-		if( user_code->verification_url == NULL )
-		{
-			
-		}
-		/* An access code is required. */
-		else
-		{
-            /* Submit the user code at the verification URL. */
-			user_code_form = get_form_from_url( curl,
-												user_code->verification_url,
-							"https://accounts.google.com/o/oauth2/device/auth",
-							user_code_names );
-			if( user_code_form != NULL )
-			{
-				enter_code.value = (gchar*) user_code->user_code;
-				input_list = g_slist_append( NULL, &enter_code );
-				modify_form( user_code_form, input_list );
-				g_slist_free( input_list );
-				form_response = post_form( curl, user_code_form );
-				destroy_form( user_code_form );
-
-				/* The response from the verification URL is page where the
-				   user is requested to authorize the application to access the
-				   user's data.  Find the approval form and submit it. */
-				g_printf( "Locating approval form\n" );
-				success = submit_approval_form( curl, form_response );
-				g_free( form_response );
-				if( success == TRUE )
-				{
-					/* The device is now approved and may request an access
-					   token and a refresh token. */
-					access_code = obtain_access_code( curl,
-													  user_code->device_code,
-											   global_config.client_id,
-											   global_config.client_password );
-					if( access_code != NULL )
-					{
-						g_printf( "Access token: %s\n", access_code->access_token );
-						exit(1);
-					}
-				}
-			}
-		}
 	}
+	if( success == TRUE )
+	{
+		/* The device is now approved and may request an access token and
+		   a refresh token. */
+		access_code = obtain_access_code( curl,
+										  user_code->device_code,
+										  global_config.client_id,
+										  global_config.client_password,
+										  FALSE );
+	}
+
+	return( access_code );
 }
 
-//https://www.googleapis.com/oauth2/v1/userinfo?access_token=ya29.AHES6ZTwO4mSEyPNmx-b5rlA0dBb3qUD14OGWFYdEYa_2Wk
-
-//https://www.googleapis.com/tasks/v1/users/@me/lists?access_token=ya29.AHES6ZTwO4mSEyPNmx-b5rlA0dBb3qUD14OGWFYdEYa_2Wk
+//https://www.googleapis.com/tasks/v1/users/@me/lists?access_token=ya2...
