@@ -25,6 +25,7 @@
 
 #include <config.h>
 #include <glib.h>
+#include <json-glib/json-glib.h>
 #include <curl/curl.h>
 
 
@@ -40,15 +41,19 @@
 	}
 
 
+typedef void (*json_decoder_function) ( const gchar *name,
+										JsonNode    *node,
+										gpointer    data );
+
+
+
 /* Container for a generic callback function and its associated user data
    which is used by the \a decode_json_foreach_wrapper function to decode
    a JSON response. */
 struct json_wrapper_t
 {
-	void     (*function)( const gchar *member_name,
-						  JsonNode    *member_node,
-						  gpointer    user_data );
-	gpointer data;
+	json_decoder_function function;
+	gpointer              data;
 };
 
 
@@ -105,7 +110,8 @@ void fill_form_with_input( gpointer input_field_ptr, gpointer form_vars_ptr );
  * Submit a form according to its \a action attribute and return the response
  * from the host.
  */
-gchar *post_form( CURL *curl, const form_field_t *form );
+gchar *post_form( CURL *curl, const form_field_t *form,
+				  struct curl_slist *headers );
 
 /*
  * Free the memory allocated by a form's input elements.
@@ -118,15 +124,20 @@ void destroy_form_inputs( form_field_t *form );
 void destroy_form( form_field_t *form );
 
 /*
- * Decode a JSON response using a custom decoder function that parses the
+ * Decode a JSON response using a custom decoder function, which parses the JSON
+ * document and places the output in a custom container.
  */
 void decode_json_reply( const gchar *json_doc,
-						void (*json_decoder)( const gchar *member_name,
-											  JsonNode    *member_node,
-											  gpointer    user_data ),
+						json_decoder_function json_decoder,
 						gpointer user_data );
 
-
+/*
+ * Auxiliary function for decode_json_reply which invokes the custom
+ * JSON decoder function.
+ */
+void
+decode_json_foreach_wrapper( JsonObject *node, const gchar *member_name,
+							 JsonNode *member_node, gpointer json_wrapper_ptr );
 
 
 #endif /* __GTASKS_POSTFORM_H */

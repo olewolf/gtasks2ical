@@ -28,6 +28,7 @@
 #include <curl/curl.h>
 #include "gtasks2ical.h"
 #include "oauth2-google.h"
+#include "postform.h"
 #include "testfunctions.h"
 
 
@@ -52,7 +53,8 @@ extern form_field_t *get_form_from_url( CURL* curl, const gchar *url,
 										const gchar *const *input_names );
 extern void modify_form_inputs( gpointer input_ptr, gpointer form_ptr );
 extern void modify_form( form_field_t *form, const GSList *inputs_to_modify );
-extern gchar *post_form( CURL *curl, const form_field_t *form );
+extern gchar *post_form( CURL *curl, const form_field_t *form,
+						 struct curl_slist *headers );
 
 
 static void test__get_forms( const char *param );
@@ -412,7 +414,7 @@ static void test__post_form( const char *param )
 	form->action = action_url;
 
 	curl = curl_easy_init( );
-	html = post_form( curl, form );
+	html = post_form( curl, form, NULL );
 	curl_easy_cleanup( curl );
 	printf( "%s\n", html );
 }

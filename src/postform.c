@@ -139,13 +139,13 @@ fill_form_with_input( gpointer input_field_ptr, gpointer form_vars_ptr )
  *       \a login_to_google function outside of the test suite).
  */
 gchar*
-post_form( CURL *curl, const form_field_t *form )
+post_form( CURL *curl, const form_field_t *form,
+		   struct curl_slist *curl_headers )
 {
 	const gchar                *form_name;
 	const gchar                *form_value;
 	const gchar                *form_action;
 
-	struct curl_slist          *curl_headers   = NULL;
 	struct curl_httppost       *form_post[ 2 ] = { NULL, NULL };
 	struct curl_write_buffer_t html_response   = { .data = NULL, .size = 0 };
 
@@ -258,14 +258,15 @@ destroy_form( form_field_t *form )
  *        that contains the custom JSON decoder function and the user data.
  * @return Nothing.
  */
-STATIC void
+void
 decode_json_foreach_wrapper( JsonObject *node, const gchar *member_name,
 							 JsonNode *member_node, gpointer json_wrapper_ptr )
 {
 	struct json_wrapper_t *json_wrapper = json_wrapper_ptr;
 
 	/* Ignore the node, and pass only those json entries that hold a value. */
-	if( JSON_NODE_HOLDS_VALUE( member_node ) )
+	if( JSON_NODE_HOLDS_VALUE( member_node ) ||
+		JSON_NODE_HOLDS_ARRAY( member_node ) )
 	{
 		json_wrapper->function( member_name, member_node, json_wrapper->data );
 	}
@@ -283,14 +284,12 @@ decode_json_foreach_wrapper( JsonObject *node, const gchar *member_name,
  */
 void
 decode_json_reply( const gchar *json_doc,
-				   void (*json_decoder)( const gchar *member_name,
-										 JsonNode    *member_node,
-										 gpointer    user_data ),
+				   json_decoder_function json_decoder,
 				   gpointer user_data )
 {
-	JsonParser         *json_parser;
-	JsonNode           *node;
-	JsonObject         *root;
+	JsonParser            *json_parser;
+	JsonNode              *node;
+	JsonObject            *root;
 	struct json_wrapper_t json_wrapper;
 
 	/* Walk through the JSON response, beginning at the root. */

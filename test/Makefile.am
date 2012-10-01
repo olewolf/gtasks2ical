@@ -20,7 +20,10 @@ TESTSCRIPTS = oauth2.at
 
 noinst_PROGRAMS = test-oauth2
 
-test_oauth2_SOURCES = test-oauth2.c $(SHAREDTESTSOURCE) ../src/oauth2-google.c
+HDR = config.h oauth2-google.h postform.h
+
+test_oauth2_SOURCES = $(HDR) test-oauth2.c $(SHAREDTESTSOURCE)  \
+	../src/oauth2-google.c ../src/postform.c
 
 SHAREDTESTSOURCE = dispatch.c testfunctions.h
 

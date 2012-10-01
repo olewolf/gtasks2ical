@@ -28,6 +28,7 @@
 #include <glib/gprintf.h>
 #include "gtasks2ical.h"
 #include "oauth2-google.h"
+#include "gtasks.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -49,9 +50,10 @@ main( int argc, char **argv )
 {
 	CURL          *curl;
 	gboolean      gmail_login;
-/*	gchar         *device_code;*/
 	struct user_code_t user_code;
 	access_code_t *access_code;
+	gchar         *access_token;
+
 
 	/* Initialize glib. */
 	g_type_init( );
@@ -85,41 +87,20 @@ main( int argc, char **argv )
 		}
 
 		/* Now that the user is logged in, obtain a device code. */
-		authorize_application( curl );
-
-			/* Obtain the access token. */
-/*
-			g_printf( "Requesting access token..." );
-			access_code = obtain_access_code( curl, device_code,
-											  global_config.client_id,
-											  global_config.client_password );
-			if( access_code != NULL )
-			{
-				g_printf( " success\n" );
-			}
-			else
-			{
-				g_printf( " failed\n" );
-			}
-		}
-		else
+		access_code = authorize_application( curl );
+		if( access_code != NULL )
 		{
-			if( global_config.verbose )
-			{
-				g_printf( " failed\n" );
-			}
+			access_token = access_code->access_token;
+			get_gtasks_lists( curl, access_token );
 		}
-*/
-		/* End test. */
 	}
-/*
 	else
 	{
 		g_printf( "\n" );
 		g_printf( "Cannot login to Gmail; please verify that your login "
 				  "credentials are correct.\n" );
 	}
-*/
+
 	curl_global_cleanup( );
 	xmlCleanupParser( );
 

@@ -20,9 +20,9 @@ AM_CFLAGS = -O0 -g -DSYSCONFDIR=${sysconfdir}
 
 bin_PROGRAMS = gtasks2ical
 
-HDR = config.h gtasks2ical.h oauth2-google.h postform.h
+HDR = config.h gtasks2ical.h oauth2-google.h postform.h gtasks.h
 
 gtasks2ical_SOURCES = $(HDR) gtasks2ical.c initializeconfig.c oauth2-google.c \
-	postform.c
+	postform.c gtasks.c
 
 

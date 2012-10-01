@@ -568,7 +568,7 @@ login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
 	modify_form( login_form, inputs_to_modify );
 	g_slist_free( inputs_to_modify );
 	/* Submit the login form. */
-	login_response = post_form( curl, login_form );
+	login_response = post_form( curl, login_form, NULL );
 	destroy_form( login_form );
 
 	#ifdef AUTOTEST
@@ -666,7 +666,7 @@ obtain_device_code( CURL *curl, const gchar *client_id )
 	/* Submit the form to pretend the user has authorized the application. */
 	if( authorization_form != NULL )
 	{
-		auth_response = post_form( curl, authorization_form );
+		auth_response = post_form( curl, authorization_form, NULL );
 		/* Grep the authorization code from the title. */
 		code_regex = g_regex_new(
 			"<title>\\s*[^=]+=\\s*([a-zA-Z0-9_/-]+)", 0, 0, NULL );
@@ -738,7 +738,7 @@ obtain_access_code( CURL *curl, const gchar *device_code,
 	}
 
 	/* Request the authorization code. */
-	token_response = post_form( curl, &request_form );
+	token_response = post_form( curl, &request_form, NULL );
 	destroy_form_inputs( &request_form );
 	/* Decode the JSON response. */
 	access_code = g_new0( access_code_t, 1 );
