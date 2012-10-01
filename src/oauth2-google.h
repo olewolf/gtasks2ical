@@ -34,41 +34,12 @@
 #define GOOGLE_OAUTH2_TOKEN "https://accounts.google.com/o/oauth2/token"
 
 
-/* The input_field_t structure contains the name and value attribute contents
-   of an HTML input tag. */
-typedef struct
-{
-	gchar *name;
-	gchar *value;
-} input_field_t;
-
-
-/* The form_field_t structure contains a HTML form's name, value, and action,
-   and a list of input fields. */
-typedef struct
-{
-	gchar  *name;
-	gchar  *value;
-	gchar  *action;
-	GSList *input_fields;
-} form_field_t;
-
-
 /* Structure used in auxiliary search functions to pass multiple values as
    one parameter. */
 struct form_search_t
 {
 	const gchar        *form_action;
 	const gchar *const *input_names;
-};
-
-
-/* Define a custom data type that is passed by the CURL call-back for
-   writing data received from Google. */
-struct curl_write_buffer_t
-{
-	gchar *data;
-	gsize size;
 };
 
 
