@@ -27,7 +27,7 @@
 #include <string.h>
 #include <curl/curl.h>
 #include "gtasks2ical.h"
-#include "oauth2.h"
+#include "oauth2-google.h"
 #include "testfunctions.h"
 
 

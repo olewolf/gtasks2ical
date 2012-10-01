@@ -146,6 +146,20 @@ Print the version of
 and exit.
 
 
+.SH PRIVACY INFORMATION
+The official Google authentication requires the application to redirect the user to a Google web site where the user authorizes the application to access the user's data.
+.B gtasks2ical
+bypasses this authorization and grants itself access to the user's Google Tasks without the user's explicit authorization.
+
+The author of
+.B gtasks2ical
+is a firm believer in software security and has decided to bypass the authorization for two reasons:
+
+Firstly, when a security measure can easily be bypassed as is the case here, it does not provide security and should thus be ignored--especially when all it accomplishes is to pester the user with manual intervention and provide a false sense of security.
+
+Secondly, most security comes at the cost of convenience. In this case, the author believes that if a user decides to use the software, presumably the user actually wants it to access his or her Google tasks and should not be bothered with security issues concerning this decision.
+
+
 .SH FILES
 .I $(sysconfdir)/gtasks2ical.conf\fR,
 .I ~/.gtasks2icalrc

@@ -25,8 +25,9 @@
 #include <libxml/parser.h>
 #include <curl/curl.h>
 #include <glib-object.h>
+#include <glib/gprintf.h>
 #include "gtasks2ical.h"
-#include "oauth2.h"
+#include "oauth2-google.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -46,9 +47,11 @@ struct configuration_t global_config;
 int
 main( int argc, char **argv )
 {
-	CURL     *curl;
-	gboolean gmail_login;
-	gchar    *device_code;
+	CURL          *curl;
+	gboolean      gmail_login;
+/*	gchar         *device_code;*/
+	struct user_code_t user_code;
+	access_code_t *access_code;
 
 	/* Initialize glib. */
 	g_type_init( );
@@ -65,10 +68,11 @@ main( int argc, char **argv )
 	/* Setup command-line options and environment variable options. */
     initialize_configuration( &global_config, argc, (const char *const *)argv );
 
+
 	/* Login to Google. */
 	if( global_config.verbose )
 	{
-		printf( "Logging in to Gmail..." );
+		g_printf( "Logging in to Gmail..." );
 	}
 	gmail_login = login_to_gmail( curl, global_config.gmail_username,
 								  global_config.gmail_password );
@@ -76,34 +80,46 @@ main( int argc, char **argv )
 	{
 		if( global_config.verbose )
 		{
-			printf( " logged in\n" );
-			printf( "Acquiring application permissions..." );
+			g_printf( " logged in\n" );
+			g_printf( "Acquiring application permissions..." );
 		}
 
 		/* Now that the user is logged in, obtain a device code. */
-		device_code = obtain_device_code( curl, global_config.client_id );
+		authorize_application( curl );
 
-		if( device_code != NULL )
-		{
-			printf( " success\n" );
-			printf( "Device code: %s\n", device_code );
+			/* Obtain the access token. */
+/*
+			g_printf( "Requesting access token..." );
+			access_code = obtain_access_code( curl, device_code,
+											  global_config.client_id,
+											  global_config.client_password );
+			if( access_code != NULL )
+			{
+				g_printf( " success\n" );
+			}
+			else
+			{
+				g_printf( " failed\n" );
+			}
 		}
 		else
 		{
 			if( global_config.verbose )
 			{
-				printf( " failed\n" );
+				g_printf( " failed\n" );
 			}
 		}
+*/
 		/* End test. */
 	}
+/*
 	else
 	{
-		printf( "\n" );
-		printf( "Cannot login to Gmail; please verify that your login "
-				"credentials are correct.\n" );
+		g_printf( "\n" );
+		g_printf( "Cannot login to Gmail; please verify that your login "
+				  "credentials are correct.\n" );
 	}
-
+*/
 	curl_global_cleanup( );
 	xmlCleanupParser( );
 

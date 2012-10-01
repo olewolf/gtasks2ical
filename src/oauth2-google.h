@@ -72,7 +72,7 @@ struct curl_write_buffer_t
 
 /* Define a custom data type that is used by a JSON foreach callback to
    decode the initial OAuth2 response. */
-struct initial_oauth2_t
+struct user_code_t
 {
 	const gchar *device_code;
 	const gchar *user_code;
@@ -80,13 +80,28 @@ struct initial_oauth2_t
 };
 
 
+typedef struct
+{
+	gchar  *access_token;
+	gchar  *refresh_token;
+	time_t expiration_timestamp;
+} access_code_t;
+
 
 /* Login to the user's Gmail account, keeping the login state in the CURL
    session. */
 gboolean login_to_gmail( CURL *curl, const gchar *username,
 						 const gchar *password );
-/* Get the device code. */
-gchar *obtain_device_code( CURL *curl, const gchar *client_id );
+
+void authorize_application( CURL *curl );
+
+
+/* Get a device code. */
+//gchar *obtain_device_code( CURL *curl, const gchar *client_id );
+/* Get an access code. */
+//access_code_t *obtain_access_code( CURL *curl, const gchar *device_code,
+//								   const gchar *client_id,
+//								   const gchar *client_password );
 
 
 

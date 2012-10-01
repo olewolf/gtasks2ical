@@ -44,6 +44,13 @@ where you register your application as a device.
 
 
 .TP
+\fBclient secret\fP
+Your Google Developer Client secret that is created at
+.I https://code.google.com/apis/console
+when you register your application.
+
+
+.TP
 \fBgmail user\fP
 Your Gmail login username, which is of the form "yourname@gmail.com".
 

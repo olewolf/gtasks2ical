@@ -120,6 +120,7 @@ reset_configuration( struct configuration_t *configuration )
 	configuration->gmail_username      = NULL;
 	configuration->gmail_password      = NULL;
 	configuration->client_id           = NULL;
+	configuration->client_password     = NULL;
 	configuration->verbose             = FALSE;
 	configuration->ipv4_only           = FALSE;
 	configuration->configuration_file  = NULL;
@@ -158,6 +159,7 @@ destroy_configuration( struct configuration_t *configuration )
 	g_free( configuration->gmail_username );
 	g_free( configuration->gmail_password );
 	g_free( configuration->client_id );
+	g_free( configuration->client_password );
 	g_free( configuration->configuration_file );
 	g_slist_foreach( configuration->tasks, destroy_config_task, NULL );
 	g_free( configuration->tasks );
@@ -337,11 +339,10 @@ apply_one_configuration_file( const gchar            *configuration_file,
 	gint        key_idx;
 	const gchar *key_name;
 	gchar       *client_id;
+	gchar       *client_password;
 	gchar       *username;
 	gchar       *password;
 	gboolean    ipv4_only;
-
-	printf( "Attempting file: %s\n", configuration_file );
 
 	/* Return reporting success if the configuration file is not specified. */
 	if( configuration_file == NULL )
@@ -358,7 +359,6 @@ apply_one_configuration_file( const gchar            *configuration_file,
 		if( success == TRUE )
 		{
 			key_group = g_key_file_get_start_group( key_file );
-			printf( "Key group: %s\n", key_group );
 			keys      = g_key_file_get_keys( key_file, key_group, NULL, NULL );
 			key_idx   = 0;
 			/* Apply the setting for each key. */
@@ -373,6 +373,18 @@ apply_one_configuration_file( const gchar            *configuration_file,
 					{
 						g_free( configuration->client_id );
 						configuration->client_id = client_id;
+					}
+				}
+				/* Set the Client password. */
+				if( g_strcmp0( key_name, "client secret" ) == 0 )
+				{
+					client_password = g_key_file_get_string( key_file,
+															 key_group,
+															 key_name, NULL );
+					if( client_password != NULL )
+					{
+						g_free( configuration->client_password );
+						configuration->client_password = client_password;
 					}
 				}
 				/* Set the username. */
@@ -411,12 +423,12 @@ apply_one_configuration_file( const gchar            *configuration_file,
 		   the file does not exist, in which case the file is ignored. */
 		else
 		{
-			fprintf( stderr, "Error: %s\n", file_error->message );
 			if( ( file_error->code != G_FILE_ERROR_ACCES         ) &&
 				( file_error->code != G_FILE_ERROR_NOENT         ) &&
 				( file_error->code != G_KEY_FILE_ERROR_NOT_FOUND ) )
 			{
 				fprintf( stderr, "Error: %s\n", file_error->message );
+				success = FALSE;
 			}
 			else
 			{

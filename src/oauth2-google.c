@@ -1,5 +1,5 @@
 /**
- * \file oauth2.c
+ * \file oauth2-google.c
  * \brief Authenticate with Google without bothering the user.
  *
  * Copyright (C) 2012 Ole Wolf <wolf@blazingangles.com>
@@ -28,11 +28,30 @@
 #include <libxml/parser.h>
 #include <curl/curl.h>
 #include <string.h>
+#include <glib/gprintf.h>
 #include "gtasks2ical.h"
-#include "oauth2.h"
+#include "oauth2-google.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
+
+#define STRINGIFY( x ) XSTRINGIFY( x )
+#define XSTRINGIFY( x ) #x
+
+#define SET_JSON_MEMBER( structure, name )                       \
+	if( g_strcmp0( member_name, STRINGIFY( name ) ) == 0 )       \
+	{                                                            \
+		structure->name = json_node_dup_string( member_node );   \
+	}
+
+
+struct json_wrapper_t
+{
+	void     (*function)( const gchar *member_name,
+						  JsonNode    *member_node,
+						  gpointer    user_data );
+	gpointer data;
+};
 
 
 extern struct configuration_t global_config;
@@ -219,7 +238,7 @@ get_forms( const gchar *raw_html_page )
 	}
 	if( tidy_status < 0 )
 	{
-		printf( "ERROR: cannot parse the HTML document\n" );
+		g_printf( "ERROR: cannot parse the HTML document\n" );
 		exit( EXIT_FAILURE );
 	}
 
@@ -469,7 +488,7 @@ read_url( CURL *curl, const gchar *url )
 	errcode = curl_easy_perform( curl );
 	if( errcode != CURLE_OK )
 	{
-		fprintf( stderr, "Could not receive web page" );
+		g_fprintf( stderr, "Could not receive web page" );
 //		exit( EXIT_FAILURE );
 	}
 	curl_easy_reset( curl );
@@ -502,6 +521,26 @@ get_form_from_url( CURL* curl, const gchar *url, const gchar *form_action,
 	g_free( raw_html );
 
 	return( form );
+}
+
+
+
+/**
+ * Create an input field and add it to a form.
+ * @param form [in/out] The form that should include the input.
+ * @param name The name of the input element.
+ * @param value The value of the input element.
+ * @return Nothing.
+ */
+STATIC void
+add_input_to_form( form_field_t *form, const gchar *name, const gchar *value )
+{
+	input_field_t *input;
+
+	input = g_new( input_field_t, 1 );
+	input->name  = g_strdup( name );
+	input->value = g_strdup( value );
+	form->input_fields = g_slist_append( form->input_fields, input );
 }
 
 
@@ -542,10 +581,7 @@ modify_form_inputs( gpointer input_ptr, gpointer form_ptr )
 	/* Or add the input if it wasn't found. */
 	else
 	{
-		new_input = g_new( input_field_t, 1 );
-		new_input->name  = g_strdup( input_field->name );
-		new_input->value = g_strdup( input_field->value );
-		form->input_fields = g_slist_append( form->input_fields, new_input );
+		add_input_to_form( form, input_field->name, input_field->value );
 	}
 }
 
@@ -596,7 +632,7 @@ fill_form_with_input( gpointer input_field_ptr, gpointer form_vars_ptr )
 
 
 /**
- * Submit a form according to its \a action attribute, and receive the response
+ * Submit a form according to its \a action attribute and return the response
  * from the host.
  * @param curl [in/out] CURL handle.
  * @param form [in] Form that should be submitted.
@@ -610,47 +646,104 @@ post_form( CURL *curl, const form_field_t *form )
 	const gchar                *form_name;
 	const gchar                *form_value;
 	const gchar                *form_action;
-	struct curl_httppost       *form_post[ 2 ] = { NULL, NULL };
-	struct curl_write_buffer_t html_body       = { NULL, 0 };
-	struct curl_slist          *curl_headers   = NULL;
 
-	/* Copy the form. */
-	form_name  = form->name;
-	form_value = form->value;
-	curl_formadd( &form_post[ 0 ], &form_post[ 1 ],
-				  CURLFORM_COPYNAME, form_name,
-				  CURLFORM_COPYCONTENTS, form_value,
-				  CURLFORM_END );
-	/* Copy the form's input elements. */
-	g_slist_foreach( form->input_fields, fill_form_with_input, form_post );
+	struct curl_slist          *curl_headers   = NULL;
+	struct curl_httppost       *form_post[ 2 ] = { NULL, NULL };
+	struct curl_write_buffer_t html_response   = { .data = NULL, .size = 0 };
+
+	form_name   = form->name;
+	form_value  = form->value;
+	form_action = form->action;
 
 	/*  Post the form using receive_curl_response to store the reply. */
-	curl_easy_setopt( curl, CURLOPT_POST, 1 );
-	curl_easy_setopt( curl, CURLOPT_HTTPPOST, form_post[ 0 ] );
-	curl_easy_setopt( curl, CURLOPT_WRITEDATA, &html_body );
-	curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, receive_curl_response );
-	curl_easy_setopt( curl, CURLOPT_HEADERDATA, NULL );
-	curl_easy_setopt( curl, CURLOPT_HEADERFUNCTION, NULL );
-//	curl_easy_setopt( curl, CURLOPT_VERBOSE, 1 );
-	/* We may be redirected several times. */
-	curl_easy_setopt( curl, CURLOPT_FOLLOWLOCATION, 1 );
-	curl_easy_setopt( curl, CURLOPT_UNRESTRICTED_AUTH, 1 );
-	/* Set the URL. */
-	form_action = form->action;
-	curl_easy_setopt( curl, CURLOPT_URL, form_action );
-	/* "Expect: 100-continue" is unwanted. */
-	curl_headers = curl_slist_append( NULL, "Expect:" );
-	curl_easy_setopt( curl, CURLOPT_HTTPHEADER, curl_headers );
+	curl_easy_setopt( curl, CURLOPT_VERBOSE, 1 );
 	if( global_config.ipv4_only == TRUE )
 	{
 		curl_easy_setopt( curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
 	}
-	/* Send the request, receiving the response in html_body. */
+
+	/* Prepare for posting a form. */
+	curl_easy_setopt( curl, CURLOPT_POST, 1 );
+
+	/* Copy the form. */
+	if( form_name != NULL )
+	{
+		curl_formadd( &form_post[ 0 ], &form_post[ 1 ],
+					  CURLFORM_COPYNAME, form_name,
+					  CURLFORM_COPYCONTENTS, form_value,
+					  CURLFORM_END );
+	}
+	/* Copy the form's input elements. */
+	g_slist_foreach( form->input_fields, fill_form_with_input, form_post );
+	/* Enter the form in CURL. */
+	curl_easy_setopt( curl, CURLOPT_HTTPPOST, form_post[ 0 ] );
+	/* We may be redirected several times. */
+	curl_easy_setopt( curl, CURLOPT_FOLLOWLOCATION, 1 );
+	curl_easy_setopt( curl, CURLOPT_UNRESTRICTED_AUTH, 1 );
+	/* Set the URL. */
+	curl_easy_setopt( curl, CURLOPT_URL, form_action );
+	/* "Expect: 100-continue" is unwanted. */
+	/*curl_headers = curl_slist_append( NULL, "Expect:" );*/
+	curl_easy_setopt( curl, CURLOPT_HTTPHEADER, curl_headers );
+	/* Send the request, receiving the response in html_response. */
+	curl_easy_setopt( curl, CURLOPT_WRITEDATA, &html_response );
+	curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, receive_curl_response );
+	curl_easy_setopt( curl, CURLOPT_HEADERDATA, NULL );
+	curl_easy_setopt( curl, CURLOPT_HEADERFUNCTION, NULL );
 	curl_easy_perform( curl );
-	curl_formfree( form_post[ 0 ] );
+
 	curl_slist_free_all( curl_headers );
+	curl_formfree( form_post[ 0 ] );
 	curl_easy_reset( curl );
-	return( html_body.data );
+
+	return( html_response.data );
+}
+
+
+
+/**
+ * Auxiliary function used by \a destroy_form_inputs to free the memory
+ * allocated by an input element.  Both the input element's strings and the
+ * input element itself are destroyed.
+ * @param input_ptr [out] Pointer to input whose memory should be deallocated.
+ * @param user_data [in] Ignored.
+ * @return Nothing.
+ */
+STATIC void
+destroy_input_field( gpointer input_ptr, gpointer user_data )
+{
+	input_field_t *input = input_ptr;
+
+	g_free( input->name );
+	g_free( input->value );
+	g_free( input );
+}
+
+
+
+/**
+ * Free the memory allocated by a form's input elements.
+ * @param form [out] The form whose input elements should be deallocated.
+ * @return Nothing.
+ */
+STATIC void
+destroy_form_inputs( form_field_t *form )
+{
+	g_slist_foreach( form->input_fields, destroy_input_field, NULL );
+}
+
+
+
+/**
+ * Free the memory allocated by a form.
+ * @param form [out] The form that is to be destroyed.
+ * @return Nothing.
+ */
+STATIC void
+destroy_form( form_field_t *form )
+{
+	destroy_form_inputs( form );
+	g_free( form );
 }
 
 
@@ -661,6 +754,7 @@ post_form( CURL *curl, const form_field_t *form )
  * @param username [in] The user's Google username (username@gmail.com).
  * @param password [in] The user's Google password.
  * @return \a TRUE if the login was successfull, or \a FALSE otherwise.
+ * Test: manual (via non-automated test).
  */
 gboolean
 login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
@@ -690,11 +784,12 @@ login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
 	g_slist_free( inputs_to_modify );
 	/* Submit the login form. */
 	login_response = post_form( curl, login_form );
+	destroy_form( login_form );
 
 	#ifdef AUTOTEST
 	if( login_response != NULL )
 	{
-		printf( "%s\n", login_response );
+		g_printf( "%s\n", login_response );
 	}
 	#endif
 
@@ -704,14 +799,11 @@ login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
 	if( g_strstr_len( login_response, response_length,
 					  "https://www.google.com/settings/ads/preferences" ) &&
 		g_strstr_len( login_response, response_length,
-					 "href=\"https://plus.google.com/u/0/me\"" ) )
-
-/*
-	if( ( g_strcmp0( login_response, "https://plus.google.com/u/0/me" ) == 0 ) &&
-		( g_strcmp0( login_response, "href=\"https://accounts.google.com/AddSession" ) == 0 ) &&
-		( g_strcmp0( login_response, "continue=https://mail.google.com/mail/u/0/&service=mail" ) == 0 ) &&
-		( g_strcmp0( login_response, "\"GMAIL_CB\",GM_START_TIME" ) == 0 ) )
-*/
+					 "href=\"https://plus.google.com/u/0/me\"" ) &&
+		g_strstr_len( login_response, response_length,
+					  "href=\"https://accounts.google.com/AddSession" ) &&
+		g_strstr_len( login_response, response_length,
+					  "\"GMAIL_CB\",GM_START_TIME" ) )
 	{
 		logged_in = TRUE;
 	}
@@ -725,96 +817,65 @@ login_to_gmail( CURL *curl, const gchar *username, const gchar *password )
 
 
 
-#if 0
-/**
- * Auxiliary function used by decode_initial_oauth2_response to copy a JSON
- * response into a local data structure.
- * @param node [in] Object with JSON data (unused).
- * @param member_name [in] Name of the JSON field.
- * @param member_node [in] Node with JSON data.
- * @param initial_oauth2_ptr [out] Pointer to the structure where the JSON
- *        data will be stored.
- * @return Nothing.
- */
 STATIC void
-parse_initial_oauth2_json( JsonObject *node, const gchar *member_name,
-						   JsonNode *member_node, gpointer initial_oauth2_ptr )
+decode_json_foreach_wrapper( JsonObject *node, const gchar *member_name,
+							 JsonNode *member_node, gpointer json_wrapper_ptr )
 {
-	struct initial_oauth2_t *initial_oauth2 = initial_oauth2_ptr;
+	struct json_wrapper_t *json_wrapper = json_wrapper_ptr;
 
-	if( g_strcmp0( member_name, "device_code" ) == 0 )
+	/* Ignore the node, and pass only those json entries that hold a value. */
+	if( JSON_NODE_HOLDS_VALUE( member_node ) )
 	{
-		initial_oauth2->device_code = json_node_dup_string( member_node );
-	}
-	else if( g_strcmp0( member_name, "verification_url" ) == 0 )
-	{
-		initial_oauth2->verification_url = json_node_dup_string( member_node );
-	}
-	else if( g_strcmp0( member_name, "user_code" ) == 0 )
-	{
-		initial_oauth2->user_code = json_node_dup_string( member_node );
-	}
-	else
-	{
-		/* Ignore other JSON data. */
+		json_wrapper->function( member_name, member_node, json_wrapper->data );
 	}
 }
 
 
 
-/**
- * Decode the initial OAuth2 response with device code, user code, and
- * verification URL.
- * @param user_code_response [in] Raw JSON response data.
- * @param initial_oauth2 [out] Structure where the data is written.
- * @return \a TRUE if the response was successfully decoded, or \a FALSE
- *         otherwise.
- */
-STATIC gboolean
-decode_initial_oauth2_response( const gchar *user_code_response,
-								struct initial_oauth2_t *initial_oauth2 )
+STATIC void
+decode_json_reply( const gchar *json_doc,
+				   void (*json_decoder)( const gchar *member_name,
+										 JsonNode    *member_node,
+										 gpointer    user_data ),
+				   gpointer user_data )
 {
-	JsonParser *json_parser;
-	JsonNode   *node;
-	JsonObject *root;
-	gboolean   success;
+	JsonParser         *json_parser;
+	JsonNode           *node;
+	JsonObject         *root;
+	struct json_wrapper_t json_wrapper;
 
-	success = FALSE;
-	initial_oauth2->device_code      = NULL;
-	initial_oauth2->user_code        = NULL;
-	initial_oauth2->verification_url = NULL;
-	if( user_code_response != NULL )
-	{
-		/* Walk through the JSON response, beginning at the root. */
-		json_parser = json_parser_new( );
-		json_parser_load_from_data( json_parser, user_code_response,
-									strlen( user_code_response ), NULL );
-		node = json_parser_get_root( json_parser );
-		root = json_node_get_object( node );
-		json_object_foreach_member( root, parse_initial_oauth2_json, NULL );
-		/* Release parser memory. */
-		g_object_unref( json_parser );
-
-		/* Verify that all fields have been decoded. */
-		if( ( initial_oauth2->device_code != NULL ) &&
-			( initial_oauth2->user_code != NULL ) &&
-			( initial_oauth2->verification_url != NULL ) )
-		{
-			success = TRUE;
-		}
-	}
-
-	/* Free memory on failure. */
-	if( success == FALSE )
-	{
-		g_free( (gchar*) initial_oauth2->device_code );
-		g_free( (gchar*) initial_oauth2->user_code );
-		g_free( (gchar*) initial_oauth2->verification_url );
-	}
-
-	return( success );
+	/* Walk through the JSON response, beginning at the root. */
+	json_parser = json_parser_new( );
+	json_parser_load_from_data( json_parser, json_doc,
+								strlen( json_doc ), NULL );
+	node = json_parser_get_root( json_parser );
+	root = json_node_get_object( node );
+	json_wrapper.function = json_decoder;
+	json_wrapper.data     = user_data;
+	json_object_foreach_member( root, decode_json_foreach_wrapper,
+								&json_wrapper );
+	/* Release parser memory. */
+	g_object_unref( json_parser );
 }
-#endif
+
+
+
+STATIC void
+parse_tokens_json( const gchar *member_name,
+				   JsonNode *member_node, gpointer access_ptr )
+{
+	access_code_t *access_code = access_ptr;
+	time_t        expiration;
+
+	SET_JSON_MEMBER( access_code, access_token );
+	SET_JSON_MEMBER( access_code, refresh_token );
+	/* Convert expiration time to a timestamp. */
+	if( g_strcmp0( member_name, "expires_in" ) )
+	{
+		expiration = json_node_get_int( member_node );
+		access_code->expiration_timestamp = time( NULL ) + expiration;
+	}
+}
 
 
 
@@ -825,8 +886,9 @@ decode_initial_oauth2_response( const gchar *user_code_response,
  * @param curl [in] CURL handle.
  * @param client_id [in] Google Developer Client ID.
  * @return Device code or \a NULL if an error occurred.
+ * Test: manual (via non-automated test).
  */
-gchar*
+struct user_code_t*
 obtain_device_code( CURL *curl, const gchar *client_id )
 {
 	static const gchar *endpoint     =
@@ -834,7 +896,7 @@ obtain_device_code( CURL *curl, const gchar *client_id )
 	static const gchar *redirect_uri = "urn:ietf:wg:oauth:2.0:oob";
 	static const gchar *scope        = "https://www.googleapis.com/auth/tasks";
 	gchar              *request_url;
-	struct initial_oauth2_t *initial_oauth2;
+
 	form_field_t       *authorization_form;
 	static const gchar *auth_form_action =
 		"https://accounts.google.com/o/oauth2/approval";
@@ -843,6 +905,7 @@ obtain_device_code( CURL *curl, const gchar *client_id )
 	GRegex             *code_regex;
 	GMatchInfo         *match_info;
 	gchar              *code;
+	struct user_code_t *user_code;
 
 	/* Build the URL for requesting access to the user's data. */
 	request_url = g_strconcat( endpoint, "?response_type=code&client_id=",
@@ -861,63 +924,173 @@ obtain_device_code( CURL *curl, const gchar *client_id )
 			"<title>\\s*[^=]+=\\s*([a-zA-Z0-9_/-]+)", 0, 0, NULL );
 		if( g_regex_match( code_regex, auth_response, 0, &match_info ) )
 		{
-			code = g_match_info_fetch( match_info, 1 );
+			user_code = g_new0( struct user_code_t, 1 );
+			user_code->device_code = g_match_info_fetch( match_info, 1 );
 		}
 		else
 		{
-			code = NULL;
+			user_code = NULL;
 		}
 		g_match_info_free( match_info );
 		g_regex_unref( code_regex );
 	}
 	else
 	{
-		code = NULL;
+		user_code = NULL;
 	}
 
-	return( code );
-
-#if 0
-	/* Disabled code for OAuth2 which for some reason won't work with
-	   my particular client ID. */
-
-	static gchar *form_action = 
-		"https://accounts.google.com/o/oauth2/device/code";
-	gchar *scope =
-//		"https://www.googleapis.com/auth/tasks";
-//		"https://www.googleapis.com/auth/userinfo.email "
-//		"https://www.googleapis.com/auth/userinfo.profile";
-	form_field_t  form            = { .name         = NULL,
-									  .value        = NULL,
-						              .action       = form_action,
-									  .input_fields = NULL };
-	input_field_t input_client_id = { .name = "client_id", .value = NULL };
-	input_field_t input_scope     = { .name = "scope", .value = scope };
-	gchar                   *user_code_response;
-	struct initial_oauth2_t *initial_oauth2;
-	gboolean                success;
-
-	input_client_id.value = g_strdup( "812741506391-h38jh0j4fv0ce1krdkiq0hfvt6n5amrf.apps.googleusercontent.com" );
-
-	/* Create a user code request. */
-	form.input_fields = g_slist_append( form.input_fields, &input_client_id );
-	form.input_fields = g_slist_append( form.input_fields, &input_scope );
-
-	/* Post the request and decode the response. */
-	user_code_response = post_form( curl, &form );
-	printf( "%s\n", user_code_response );
-	g_slist_free( form.input_fields );
-	initial_oauth2 = g_new( struct initial_oauth2_t, 1 );
-	exit( 1 );
-	success = decode_initial_oauth2_response( user_code_response,
-											  initial_oauth2 );
-
-	/* Return NULL if an error occurred. */
-	if( success == FALSE )
-	{
-		g_free( initial_oauth2 );
-		initial_oauth2 = NULL;
-	}
-#endif
+	return( user_code );
 }
 
+
+
+STATIC access_code_t*
+obtain_access_code( CURL *curl, const gchar *device_code,
+					const gchar *client_id, const gchar *client_secret )
+{
+	form_field_t request_form =
+	{
+		.name = NULL,
+		.value = NULL,
+		.action = "https://accounts.google.com/o/oauth2/token",
+		.input_fields = NULL
+	};
+	gchar         *token_response;
+	access_code_t *access_code;
+
+	/* Build an authorization code request form. */
+	add_input_to_form( &request_form, "code", device_code );
+	add_input_to_form( &request_form, "client_id", client_id );
+	add_input_to_form( &request_form, "client_secret", client_secret );
+	add_input_to_form( &request_form, "grant_type",
+					   "http://oauth.net/grant_type/device/1.0" );
+	/* Request the authorization code. */
+	token_response = post_form( curl, &request_form );
+	destroy_form_inputs( &request_form );
+	/* Decode the JSON response. */
+	access_code = g_new0( access_code_t, 1 );
+	decode_json_reply( token_response, parse_tokens_json, access_code );
+	g_free( token_response );
+
+	if( ( access_code->access_token == NULL ) ||
+		( access_code->refresh_token == NULL ) ||
+		( access_code->expiration_timestamp == (time_t) 0 ) )
+	{
+		g_free( access_code->access_token );
+		g_free( access_code->refresh_token );
+		g_free( access_code );
+		access_code = NULL;
+	}
+
+	return( access_code );
+}
+
+
+
+STATIC gboolean
+submit_approval_form( CURL *curl, const gchar *approval_page )
+{
+	form_field_t       *approval_form;
+	const gchar *const approval_names[ ] = { "submit_access", NULL };
+	gchar              *form_response;
+	gboolean           success;
+
+	approval_form = find_form( approval_page,
+						"https://accounts.google.com/o/oauth2/",
+					    approval_names );
+	if( approval_form != NULL )
+	{
+		g_printf( "Submitting approval form\n" );
+
+		/* Submit the approval form. */
+		form_response = post_form( curl, approval_form );
+
+		destroy_form( approval_form );
+		g_free( form_response );
+		success = TRUE;
+	}
+	else
+	{
+		success = FALSE;
+	}
+
+	return( success );
+}
+
+
+
+/**
+ *
+ */
+void
+authorize_application( CURL *curl )
+{
+	struct user_code_t *user_code;
+	form_field_t       *user_code_form;
+	const gchar *const user_code_names[ ] = { NULL };
+	input_field_t      enter_code = { .name = "user_code", .value = NULL };
+	GSList             *input_list;
+	gchar              *form_response;
+	access_code_t      *access_code;
+	gboolean           success;
+
+	/* Obtain a device code, a user code, and the verification URL. */
+	user_code = obtain_device_code( curl, global_config.client_id );
+	if( user_code != NULL )
+	{
+		g_printf( "User code obtained.\n" );
+		/* As of October 1, 2012, there is a bug in Google's authentication
+		   API that prevents devices from accessing the Tasks scope.  To
+		   work around this, determine whether an access token is required. */
+
+		/* No access token is required; the application is already
+		   authorized. */
+		if( user_code->verification_url == NULL )
+		{
+			
+		}
+		/* An access code is required. */
+		else
+		{
+            /* Submit the user code at the verification URL. */
+			user_code_form = get_form_from_url( curl,
+												user_code->verification_url,
+							"https://accounts.google.com/o/oauth2/device/auth",
+							user_code_names );
+			if( user_code_form != NULL )
+			{
+				enter_code.value = (gchar*) user_code->user_code;
+				input_list = g_slist_append( NULL, &enter_code );
+				modify_form( user_code_form, input_list );
+				g_slist_free( input_list );
+				form_response = post_form( curl, user_code_form );
+				destroy_form( user_code_form );
+
+				/* The response from the verification URL is page where the
+				   user is requested to authorize the application to access the
+				   user's data.  Find the approval form and submit it. */
+				g_printf( "Locating approval form\n" );
+				success = submit_approval_form( curl, form_response );
+				g_free( form_response );
+				if( success == TRUE )
+				{
+					/* The device is now approved and may request an access
+					   token and a refresh token. */
+					access_code = obtain_access_code( curl,
+													  user_code->device_code,
+											   global_config.client_id,
+											   global_config.client_password );
+					if( access_code != NULL )
+					{
+						g_printf( "Access token: %s\n", access_code->access_token );
+						exit(1);
+					}
+				}
+			}
+		}
+	}
+}
+
+//https://www.googleapis.com/oauth2/v1/userinfo?access_token=ya29.AHES6ZTwO4mSEyPNmx-b5rlA0dBb3qUD14OGWFYdEYa_2Wk
+
+//https://www.googleapis.com/tasks/v1/users/@me/lists?access_token=ya29.AHES6ZTwO4mSEyPNmx-b5rlA0dBb3qUD14OGWFYdEYa_2Wk

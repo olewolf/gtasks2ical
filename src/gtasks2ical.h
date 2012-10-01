@@ -28,15 +28,12 @@
 #include <glib.h>
 
 
-/* To use gtasks2ical in your own application, register your application
-   with Google and change the client ID and client secret settings to match
-   those of your application. */
-//#define GOOGLE_CLIENT_ID     430385316884.apps.googleusercontent.com
-//#define GOOGLE_CLIENT_SECRET Fcjb9cdutlDWu2lSLq2IaC5M
-
 /* Set the environment variable name that contains the Gmail credentials,
    formatted as username@gmail.com:password. */
 #define GMAIL_CREDENTIALS "GMAIL_CREDENTIALS"
+/* Set the environment variable name that contains the Client ID and password,
+   formatted as clientid:clientpassword. */
+#define GTASKS2ICAL_CLIENT "client-id:client-password"
 
 /* Name of the global configuration file relative to the system configuration
    directory (which is typically either /etc or /usr/local/etc). */
@@ -67,6 +64,7 @@ struct configuration_t
 	gchar    *gmail_username;
 	gchar    *gmail_password;
 	gchar    *client_id;
+	gchar    *client_password;
 
 	gboolean verbose;
 	gboolean ipv4_only;

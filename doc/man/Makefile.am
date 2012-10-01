@@ -19,7 +19,7 @@ install-data-hook:
 	done; \
 	manpages=( ${man5_MANS} ); \
 	for manpage in $${manpages[@]}; do \
-		if [ -f ${mandir}/man1/$$manpage ]; then gzip -f -9 ${mandir}/man5/$$manpage; fi; \
+		if [ -f ${mandir}/man5/$$manpage ]; then gzip -f -9 ${mandir}/man5/$$manpage; fi; \
 	done;
 
 uninstall-hook:
