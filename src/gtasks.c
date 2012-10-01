@@ -27,20 +27,13 @@
 #include <glib/gprintf.h>
 #include "gtasks2ical.h"
 #include "postform.h"
+#include "gtasks.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 
 #define GOOGLE_TASKS_API "https://www.googleapis.com/tasks/v1/"
-
-
-typedef struct
-{
-	gchar    *id;
-	gchar    *title;
-	GTimeVal updated;
-} gtask_list_t;
 
 
 
@@ -186,6 +179,17 @@ decode_tasklists_json( const gchar *name, JsonNode *node, gpointer data_ptr )
 
 
 
+void
+debug_show_list( gpointer data, gpointer user_data )
+{
+	gtask_list_t *list = data;
+	g_printf( "LIST: %s\n", list->title );
+	g_printf( "  id = %s\n", list->id );
+	g_printf( "  updated = %s\n", g_time_val_to_iso8601( &list->updated ) );
+}
+
+
+
 /**
  * Read the user's task lists.
  * @param curl [in] CURL handle.
@@ -202,20 +206,50 @@ get_gtasks_lists( CURL *curl, const gchar *access_token )
 	json_response = send_gtasks_data( curl, "GET", "users/@me/lists",
 									  access_token, NULL, NULL );
 	decode_json_reply( json_response, decode_tasklists_json, &lists );
+/*
+	g_slist_foreach( lists, debug_show_list, NULL );
+*/
 
 	return( lists );
 }
 
 
-/*
-void
-show_list( gpointer data, gpointer user_data )
+
+/**
+ * Get information about a specified task list.
+ * @param curl [in] CURL handle.
+ * @param access_token [in] Access token for the user's Google data.
+ * @param task_list_id [in] ID of the task list.
+ * @return Information about the task list.
+ */
+gtask_list_t*
+get_specified_gtasks_list( CURL *curl, const gchar *access_token,
+						   const char *task_list_id )
 {
-	gtask_list_t *list = data;
-	g_printf( "LIST: %s\n", list->title );
-	g_printf( "  id = %s\n", list->id );
-	g_printf( "  updated = %s\n", g_time_val_to_iso8601( &list->updated ) );
-}
+	gchar             *uri;
+	struct curl_slist *curl_headers = NULL;
+	gchar             *json_response;
+	gtask_list_t      *list_entry;
+
+	/* Request information about the specified list. */
+	uri = g_strconcat( "users/@me/lists/", task_list_id, NULL );
+	json_response = send_gtasks_data( curl, "GET", uri,
+									  access_token, NULL, NULL );
+	g_free( uri );
+	/* Copy the list name attributes into the list entry. */
+	list_entry = g_new0( gtask_list_t, 1 );
+	decode_json_reply( json_response, copy_list_name_values, list_entry );
+/*
+	debug_show_list( list_entry, NULL );
 */
+	/* Return zero if an error occurred. */
+	if( list_entry->title == NULL )
+	{
+		g_free( list_entry->id );
+		g_free( list_entry );
+		list_entry = NULL;
+	}
+	return( list_entry );
+}
 
 

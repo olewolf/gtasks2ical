@@ -92,6 +92,8 @@ main( int argc, char **argv )
 		{
 			access_token = access_code->access_token;
 			get_gtasks_lists( curl, access_token );
+			get_specified_gtasks_list( curl, access_token, "MTUwNDAyNjM4MzYwNTUzNDIyNjU6MDow" );
+
 		}
 	}
 	else

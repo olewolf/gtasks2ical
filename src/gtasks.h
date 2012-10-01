@@ -27,14 +27,26 @@
 #include <glib.h>
 #include <curl/curl.h>
 
+
 #define GOOGLE_TASKS_API "https://www.googleapis.com/tasks/v1/"
+
+
+typedef struct
+{
+	gchar    *id;
+	gchar    *title;
+	GTimeVal updated;
+} gtask_list_t;
+
+
 
 
 /*
  * Read the user's task lists.
  */
 GSList* get_gtasks_lists( CURL *curl, const gchar *access_token );
-
+gtask_list_t* get_specified_gtasks_list( CURL *curl, const gchar *access_token,
+										 const char *task_list_name );
 
 
 #endif /* __GTASKS_H */
