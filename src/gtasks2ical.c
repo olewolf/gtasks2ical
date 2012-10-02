@@ -91,9 +91,10 @@ main( int argc, char **argv )
 		if( access_code != NULL )
 		{
 			access_token = access_code->access_token;
-			get_gtasks_lists( curl, access_token );
-			get_specified_gtasks_list( curl, access_token, "MTUwNDAyNjM4MzYwNTUzNDIyNjU6MDow" );
-
+//			get_gtasks_lists( curl, access_token );
+//			get_specified_gtasks_list( curl, access_token, "MTUwNDAyNjM4MzYwNTUzNDIyNjU6MDow" );
+//			get_all_list_tasks( curl, access_token, "MTUwNDAyNjM4MzYwNTUzNDIyNjU6MDow", NULL );
+			get_specified_task( curl, access_token, "MTUwNDAyNjM4MzYwNTUzNDIyNjU6MDow", "MTUwNDAyNjM4MzYwNTUzNDIyNjU6MDo3NTAyMDg5OA" );
 		}
 	}
 	else

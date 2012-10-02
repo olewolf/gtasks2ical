@@ -25,6 +25,7 @@
 #include <json-glib/json-glib.h>
 #include <string.h>
 #include <glib/gprintf.h>
+#include <libical/ical.h>
 #include "gtasks2ical.h"
 #include "postform.h"
 #include "gtasks.h"
@@ -35,6 +36,11 @@
 
 #define GOOGLE_TASKS_API "https://www.googleapis.com/tasks/v1/"
 
+struct tasks_page_t
+{
+	GSList *tasks;
+	gchar  *next_page;
+};
 
 
 /* Global configuration data. */
@@ -70,7 +76,7 @@ send_gtasks_data( CURL *curl, const gchar *method, const gchar *rest_uri,
 									  "Accept: application/json" );
 	curl_headers = curl_slist_append( curl_headers, authorization );
 
-	curl_easy_setopt( curl, CURLOPT_VERBOSE, 1 );
+//	curl_easy_setopt( curl, CURLOPT_VERBOSE, 1 );
 	if( global_config.ipv4_only == TRUE )
 	{
 		curl_easy_setopt( curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
@@ -253,3 +259,336 @@ get_specified_gtasks_list( CURL *curl, const gchar *access_token,
 }
 
 
+
+STATIC void
+copy_link_attributes( const gchar *member_name, JsonNode *member_node,
+					  gpointer data_ptr )
+{
+	gtask_link_t *link = data_ptr;
+
+	g_printf( "DEBUG: copy_link_attributes\n" );
+
+	SET_JSON_MEMBER( link, type );
+	SET_JSON_MEMBER( link, description );
+	SET_JSON_MEMBER( link, link );
+}
+
+
+
+STATIC void
+copy_link( JsonArray *links, guint index, JsonNode *node, gpointer data_ptr )
+{
+	gtask_t               *task = data_ptr;
+	JsonObject            *root;
+	struct json_wrapper_t json_wrapper;
+	gtask_link_t          *link;
+
+	g_printf( "DEBUG: copy_link\n" );
+
+	/* Copy the task attributes into the task. */
+	link = g_new0( gtask_link_t, 1 );
+	json_wrapper.function = copy_link_attributes;
+	json_wrapper.data     = link;
+	root = json_node_get_object( node );
+	json_object_foreach_member( root, decode_json_foreach_wrapper,
+								&json_wrapper );
+	task->links = g_slist_append( task->links, link );
+}
+
+
+
+/**
+ * Callback function that assigns values to the task attributes.
+ * @param name [in] Name of the current node.
+ * @param node [in] Current node.
+ * @param page_ptr [out] Pointer to tasks structure.
+ * @return Nothing.
+ * Test: manual.
+ */
+STATIC void
+copy_task_values( const gchar *member_name, JsonNode *member_node,
+				  gpointer data_ptr )
+{
+	gtask_t     *task = data_ptr;
+	const gchar *date_string;
+	JsonArray   *links;
+
+	SET_JSON_MEMBER( task, id );
+	SET_JSON_MEMBER( task, etag );
+	SET_JSON_MEMBER( task, title );
+	SET_JSON_MEMBER( task, parent );
+	SET_JSON_MEMBER( task, notes );
+	SET_JSON_MEMBER( task, status );
+	if( g_strcmp0( member_name, "updated" ) == 0 )
+	{
+		date_string = json_node_get_string( member_node );
+		g_time_val_from_iso8601( date_string, &task->updated );
+	}
+	else if( g_strcmp0( member_name, "selfLink" ) == 0 )
+	{
+		task->self_link = json_node_dup_string( member_node );
+	}
+	else if( g_strcmp0( member_name, "position" ) == 0 )
+	{
+		task->position = json_node_get_int( member_node );
+	}
+	else if( g_strcmp0( member_name, "due" ) == 0 )
+	{
+		date_string = json_node_get_string( member_node );
+		g_time_val_from_iso8601( date_string, &task->due );
+	}
+	else if( g_strcmp0( member_name, "completed" ) == 0 )
+	{
+		date_string = json_node_get_string( member_node );
+		g_time_val_from_iso8601( date_string, &task->completed );
+	}
+	else if( g_strcmp0( member_name, "deleted" ) == 0 )
+	{
+		task->position = json_node_get_boolean( member_node );
+	}
+	else if( g_strcmp0( member_name, "hidden" ) == 0 )
+	{
+		task->position = json_node_get_boolean( member_node );
+	}
+	else if( g_strcmp0( member_name, "links" ) == 0 )
+	{
+		links = json_node_get_array( member_node );
+		json_array_foreach_element( links, copy_link, task );
+	}
+}
+
+
+
+/**
+ * Callback function that walks through an array of task attributes to compile
+ * a task.
+ * @param items [in] Not used.
+ * @param index [in] Not used.
+ * @param node [in] Node containing the array.
+ * @param data_ptr [in] Pointer to the task container that should be populated.
+ * @return Nothing.
+ * Test: manual.
+ */
+STATIC void
+copy_task( JsonArray *items, guint index, JsonNode *node, gpointer data_ptr )
+{
+	struct tasks_page_t   *tasks_page = data_ptr;
+	JsonObject            *root;
+	struct json_wrapper_t json_wrapper;
+	gtask_t               *task;
+
+	/* Copy the task attributes into the task. */
+	task = g_new0( gtask_t, 1 );
+	json_wrapper.function = copy_task_values;
+	json_wrapper.data     = task;
+	root = json_node_get_object( node );
+	json_object_foreach_member( root, decode_json_foreach_wrapper,
+								&json_wrapper );
+	tasks_page->tasks = g_slist_append( tasks_page->tasks, task );
+}
+
+
+
+/**
+ * Decode the "next page" token and the tasks in the current list.
+ * @param name [in] Name of the current node.
+ * @param node [in] Current node.
+ * @param page_ptr [out] Pointer to page and tasks container.
+ * @return Nothing.
+ * Test: manual.
+ */
+STATIC void
+decode_task_page( const gchar *name, JsonNode *node, gpointer page_ptr )
+{
+	struct tasks_page_t *tasks_page = page_ptr;
+	JsonArray           *items;
+	gtask_t             *task;
+
+	/* Store the "next page" token. */
+	if( g_strcmp0( name, "nextPageToken" ) == 0 )
+	{
+		tasks_page->next_page = json_node_dup_string( node );
+	}
+	/* The items array is an array of tasks. */
+	else if( g_strcmp0( name, "items" ) == 0 )
+	{
+		items = json_node_get_array( node );
+		json_array_foreach_element( items, copy_task, tasks_page );
+	}
+}
+
+
+
+
+void
+debug_show_gtimeval( GTimeVal *t )
+{
+	g_printf( "%s", g_time_val_to_iso8601( t ) );
+}
+
+void
+debug_show_task( gpointer task_ptr, gpointer data )
+{
+	gtask_t *task = task_ptr;
+	g_printf( "ID: %s\n", task->id );
+	g_printf( "Etag: %s\n", task->etag );
+	g_printf( "Title: %s\n", task->title );
+	g_printf( "Updated: " ); debug_show_gtimeval( &task->updated );
+	    g_printf( "\n" );
+	g_printf( "Self_link: %s\n", task->self_link );
+	g_printf( "Parent: %s\n", task->parent );
+	g_printf( "Position: %d\n", task->position );
+	g_printf( "Notes: %s\n", task->notes );
+	g_printf( "Status: %s\n", task->status );
+	g_printf( "Due: " ); debug_show_gtimeval( &task->due );
+	    g_printf( "\n" );
+	g_printf( "Completed: " ); debug_show_gtimeval( &task->completed );
+	    g_printf( "\n" );
+	g_printf( "Deleted: %d\n", task->deleted );
+	g_printf( "Hidden: %d\n", task->hidden );
+}
+
+void
+debug_show_tasks( GSList *tasks )
+{
+	g_slist_foreach( tasks, debug_show_task, NULL );
+}
+
+
+
+/**
+ * Read all tasks for a particular task list.
+ * @param curl [in] CURL handle.
+ * @param access_token [in] Access token for the user's Google data.
+ * @param task_list_id [in] ID of the task list.
+ * @param page_token [in] Page token for requesting the next round of tasks.
+ * @return Information about the task list.
+ * Test: manual.
+ */
+GSList*
+get_all_list_tasks( CURL *curl, const gchar *access_token,
+					const gchar *task_list_id, const gchar *page_token )
+{
+	gchar               *uri;
+	gchar               *page;
+	struct curl_slist   *curl_headers = NULL;
+	gchar               *json_response;
+	struct tasks_page_t tasks_page = { NULL, NULL };
+	GSList              *tasks;
+	GSList              *tasks_to_append;
+
+	/* Indicate which page is requested. */
+	if( page_token != NULL )
+	{
+		page = g_strconcat( "?pageToken=", page_token, NULL );
+	}
+	else
+	{
+		page = NULL;
+	}
+	/* Specify the list in the URI. */
+	uri = g_strconcat( "lists/", task_list_id, "/tasks", page, NULL );
+	g_free( page );
+	/* Request the tasks. */
+	json_response = send_gtasks_data( curl, "GET", uri,
+									  access_token, NULL, NULL );
+	g_free( uri );
+
+	/* Decode the items list and the next-page token. */
+	g_printf( "json_response = %s\n", json_response );
+	decode_json_reply( json_response, decode_task_page, &tasks_page );
+	g_free( json_response );
+	tasks = tasks_page.tasks;
+
+	/* If there are more pages, request the next page and append its task
+	   list to our growing grande list o' tasks. */
+	if( tasks_page.next_page != NULL )
+	{
+		tasks_to_append = get_all_list_tasks( curl, access_token, task_list_id,
+											  tasks_page.next_page );
+		g_free( tasks_page.next_page );
+		tasks = g_slist_concat( tasks, tasks_to_append );
+	}
+
+//	debug_show_tasks( tasks );
+
+	return( tasks );
+}
+
+
+
+
+
+/*
+gchar*
+convert_gtask_to_vcalendar( const gtask_t *gtask )
+{
+
+	icalcomponent *todo;
+	icalproperty  *property;
+	icalparameter *param;
+	struct icaltimetype atime;
+
+	todo = icalcomponent_vanew(
+		ICAL_VCALENDAR_COMPONENT,
+		icalproperty_new_version( "2.0" ),
+		icalproperty_new_prodid( "-//Google//gtasks2ical//EN" ),
+
+		icalcomponent_vanew(
+			ICAL_VTODO_COMPONENT,
+			icalproperty_new_dtstamp( atime ),
+			icalproperty_new_uid( "guid1.host1.com" ),
+			icalproperty_vanew_organizer(
+				"youremail@gmail.com",
+				icalparameter_new_role( ICAL_ROLE_CHAIR ),
+				0 ),
+			icalproperty_vanew_attendee(
+				"anotheremail@gmail.com",
+				icalparameter_new_role( ICAL_ROLE_REQPARTICIPANT ),
+				icalparameter_new_rsvp( 1 ),
+				icalparameter_new_cutype( ICAL_CUTYPE_GROUP ),
+				0 ),
+			icalproperty_new_location( "Office 7" ),
+			0 ),
+		0 )
+		);
+}
+*/
+
+
+
+/**
+ * Read a specific task from a tasks list.
+ * @param curl [in] CURL handle.
+ * @param access_token [in] Access token for the user's Google data.
+ * @param task_list_id [in] ID of the task list.
+ * @param task_id [in] The ID of the task to read.
+ * @return The requested task.
+ * Test: manual.
+ */
+gtask_t*
+get_specified_task( CURL *curl, const gchar *access_token,
+					const gchar *task_list_id, const gchar *task_id )
+{
+	gchar             *uri;
+	struct curl_slist *curl_headers = NULL;
+	gchar             *json_response;
+	gtask_t           *task;
+
+	/* Specify the list and the task in the URI. */
+	uri = g_strconcat( "lists/", task_list_id, "/tasks/", task_id, NULL );
+	/* Request the tasks. */
+	json_response = send_gtasks_data( curl, "GET", uri,
+									  access_token, NULL, NULL );
+	g_printf( "json_response = %s\n", json_response );
+	g_free( uri );
+
+	/* Decode the items list and the next-page token. */
+	task = g_new0( gtask_t, 1 );
+	decode_json_reply( json_response, copy_task_values, task );
+	g_free( json_response );
+
+//	debug_show_task( task, NULL );
+
+	return( task );
+}

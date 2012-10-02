@@ -39,6 +39,32 @@ typedef struct
 } gtask_list_t;
 
 
+typedef struct
+{
+	gchar *type;
+	gchar *description;
+	gchar *link;
+} gtask_link_t;
+
+typedef struct
+{
+	gchar    *id;
+	gchar    *etag;
+	gchar    *title;
+	GTimeVal updated;
+	gchar    *self_link;
+	gchar    *parent;
+	gint     position;
+	gchar    *notes;
+	gchar    *status;
+	GTimeVal due;
+	GTimeVal completed;
+	gboolean deleted;
+	gboolean hidden;
+	GSList   *links;
+} gtask_t;
+
+
 
 
 /*
@@ -47,6 +73,13 @@ typedef struct
 GSList* get_gtasks_lists( CURL *curl, const gchar *access_token );
 gtask_list_t* get_specified_gtasks_list( CURL *curl, const gchar *access_token,
 										 const char *task_list_name );
+/*
+ * Read tasks from a specified list.
+ */
+GSList* get_all_list_tasks( CURL *curl, const gchar *access_token,
+							const char *task_list_id, const char *page_token );
+gtask_t* get_specified_task( CURL *curl, const gchar *access_token,
+							 const gchar *task_list_id, const gchar *task_id );
 
 
 #endif /* __GTASKS_H */
