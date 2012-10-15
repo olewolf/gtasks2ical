@@ -33,9 +33,9 @@
 
 typedef struct
 {
-	gchar    *id;
-	gchar    *title;
-	GTimeVal updated;
+	gchar     *id;
+	gchar     *title;
+	GDateTime *updated;
 } gtask_list_t;
 
 
@@ -48,20 +48,21 @@ typedef struct
 
 typedef struct
 {
-	gchar    *id;
-	gchar    *etag;
-	gchar    *title;
-	GTimeVal updated;
-	gchar    *self_link;
-	gchar    *parent;
-	gint     position;
-	gchar    *notes;
-	gchar    *status;
-	GTimeVal due;
-	GTimeVal completed;
-	gboolean deleted;
-	gboolean hidden;
-	GSList   *links;
+	gchar     *id;
+	gchar     *x_google_task_id;
+	gchar     *etag;
+	gchar     *title;
+	GDateTime *updated;
+	gchar     *self_link;
+	gchar     *parent;
+	gchar     *position;
+	gchar     *notes;
+	gchar     *status;
+	GDateTime *due;
+	GDateTime *completed;
+	gboolean  deleted;
+	gboolean  hidden;
+	GSList    *links;
 } gtask_t;
 
 

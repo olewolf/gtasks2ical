@@ -35,7 +35,7 @@ The following software is needed to run gtasks2ical:
 @li libconfig
 
 @section installation Installation
- 
+
 @subsection installation_tarballs Building from Source Tarball
 
 Get the code:

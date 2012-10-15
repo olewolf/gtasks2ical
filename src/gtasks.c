@@ -120,6 +120,7 @@ copy_list_name_values( const gchar *member_name, JsonNode *member_node,
 {
 	gtask_list_t *list = data_ptr;
 	const gchar  *date_string;
+	GTimeVal     updated_time;
 
 	SET_JSON_MEMBER( list, id );
 	SET_JSON_MEMBER( list, title );
@@ -127,7 +128,8 @@ copy_list_name_values( const gchar *member_name, JsonNode *member_node,
 	if( g_strcmp0( member_name, "updated" ) == 0 )
 	{
 		date_string = json_node_get_string( member_node );
-		g_time_val_from_iso8601( date_string, &list->updated );
+		g_time_val_from_iso8601( date_string, &updated_time );
+		list->updated = g_date_time_new_from_timeval_local( &updated_time );
 	}
 }
 
@@ -191,7 +193,7 @@ debug_show_list( gpointer data, gpointer user_data )
 	gtask_list_t *list = data;
 	g_printf( "LIST: %s\n", list->title );
 	g_printf( "  id = %s\n", list->id );
-	g_printf( "  updated = %s\n", g_time_val_to_iso8601( &list->updated ) );
+	g_printf( "  updated = %s\n", g_date_time_format( list->updated, "%F %R:%S %Z" ) );
 }
 
 
@@ -260,6 +262,14 @@ get_specified_gtasks_list( CURL *curl, const gchar *access_token,
 
 
 
+/**
+ * Copy the link type, description, and target to a link entry.
+ * @param member_name [in] Either "type," "description," or "link."
+ * @param member_node [in] The attribute value for the above type.
+ * @param data_ptr [in] Pointer to the destination where the attributes are
+ *        copied to.
+ * @return Nothing.
+ */
 STATIC void
 copy_link_attributes( const gchar *member_name, JsonNode *member_node,
 					  gpointer data_ptr )
@@ -275,10 +285,19 @@ copy_link_attributes( const gchar *member_name, JsonNode *member_node,
 
 
 
+/**
+ * Copy all the Google Tasks links to a linked list.
+ * @param links [in] Array of links decoded from the Google Tasks JSON reply.
+ * @param index [in] Unused.
+ * @param node [in] The node with the link attributes.
+ * @param data_ptr [in] Pointer the destination list where the links are
+ *        inserted.
+ * @return Nothing.
+ */
 STATIC void
 copy_link( JsonArray *links, guint index, JsonNode *node, gpointer data_ptr )
 {
-	gtask_t               *task = data_ptr;
+	GSList                **link_list = data_ptr;
 	JsonObject            *root;
 	struct json_wrapper_t json_wrapper;
 	gtask_link_t          *link;
@@ -292,7 +311,7 @@ copy_link( JsonArray *links, guint index, JsonNode *node, gpointer data_ptr )
 	root = json_node_get_object( node );
 	json_object_foreach_member( root, decode_json_foreach_wrapper,
 								&json_wrapper );
-	task->links = g_slist_append( task->links, link );
+	*link_list = g_slist_append( *link_list, link );
 }
 
 
@@ -312,6 +331,7 @@ copy_task_values( const gchar *member_name, JsonNode *member_node,
 	gtask_t     *task = data_ptr;
 	const gchar *date_string;
 	JsonArray   *links;
+	GTimeVal    timeval;
 
 	SET_JSON_MEMBER( task, id );
 	SET_JSON_MEMBER( task, etag );
@@ -322,7 +342,8 @@ copy_task_values( const gchar *member_name, JsonNode *member_node,
 	if( g_strcmp0( member_name, "updated" ) == 0 )
 	{
 		date_string = json_node_get_string( member_node );
-		g_time_val_from_iso8601( date_string, &task->updated );
+		g_time_val_from_iso8601( date_string, &timeval );
+		task->updated = g_date_time_new_from_timeval_local( &timeval );
 	}
 	else if( g_strcmp0( member_name, "selfLink" ) == 0 )
 	{
@@ -330,30 +351,32 @@ copy_task_values( const gchar *member_name, JsonNode *member_node,
 	}
 	else if( g_strcmp0( member_name, "position" ) == 0 )
 	{
-		task->position = json_node_get_int( member_node );
+		task->position = json_node_dup_string( member_node );
 	}
 	else if( g_strcmp0( member_name, "due" ) == 0 )
 	{
 		date_string = json_node_get_string( member_node );
-		g_time_val_from_iso8601( date_string, &task->due );
+		g_time_val_from_iso8601( date_string, &timeval );
+		task->due = g_date_time_new_from_timeval_local( &timeval );
 	}
 	else if( g_strcmp0( member_name, "completed" ) == 0 )
 	{
 		date_string = json_node_get_string( member_node );
-		g_time_val_from_iso8601( date_string, &task->completed );
+		g_time_val_from_iso8601( date_string, &timeval );
+		task->completed = g_date_time_new_from_timeval_local( &timeval );
 	}
 	else if( g_strcmp0( member_name, "deleted" ) == 0 )
 	{
-		task->position = json_node_get_boolean( member_node );
+		task->deleted = json_node_get_boolean( member_node );
 	}
 	else if( g_strcmp0( member_name, "hidden" ) == 0 )
 	{
-		task->position = json_node_get_boolean( member_node );
+		task->hidden = json_node_get_boolean( member_node );
 	}
 	else if( g_strcmp0( member_name, "links" ) == 0 )
 	{
 		links = json_node_get_array( member_node );
-		json_array_foreach_element( links, copy_link, task );
+		json_array_foreach_element( links, copy_link, &task->links );
 	}
 }
 
@@ -421,9 +444,9 @@ decode_task_page( const gchar *name, JsonNode *node, gpointer page_ptr )
 
 
 void
-debug_show_gtimeval( GTimeVal *t )
+debug_show_gtimeval( GDateTime *t )
 {
-	g_printf( "%s", g_time_val_to_iso8601( t ) );
+	g_printf( "%s", g_date_time_format( t, "%F %R:%S %Z" ) );
 }
 
 void
@@ -433,16 +456,16 @@ debug_show_task( gpointer task_ptr, gpointer data )
 	g_printf( "ID: %s\n", task->id );
 	g_printf( "Etag: %s\n", task->etag );
 	g_printf( "Title: %s\n", task->title );
-	g_printf( "Updated: " ); debug_show_gtimeval( &task->updated );
+	g_printf( "Updated: " ); debug_show_gtimeval( task->updated );
 	    g_printf( "\n" );
 	g_printf( "Self_link: %s\n", task->self_link );
 	g_printf( "Parent: %s\n", task->parent );
-	g_printf( "Position: %d\n", task->position );
+	g_printf( "Position: %s\n", task->position );
 	g_printf( "Notes: %s\n", task->notes );
 	g_printf( "Status: %s\n", task->status );
-	g_printf( "Due: " ); debug_show_gtimeval( &task->due );
+	g_printf( "Due: " ); debug_show_gtimeval( task->due );
 	    g_printf( "\n" );
-	g_printf( "Completed: " ); debug_show_gtimeval( &task->completed );
+	g_printf( "Completed: " ); debug_show_gtimeval( task->completed );
 	    g_printf( "\n" );
 	g_printf( "Deleted: %d\n", task->deleted );
 	g_printf( "Hidden: %d\n", task->hidden );
