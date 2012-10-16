@@ -86,128 +86,17 @@
 #include <libical/ical.h>
 #include "gtasks2ical.h"
 #include "gtasks.h"
+#include "merge.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
-
-typedef struct
-{
-	gchar *id;
-} icalendar_t;
 
 
 /* Global configuration data. */
 extern struct configuration_t global_config;
 
 
-struct geo_location_t
-{
-	double latitude;
-	double longitude;
-};
-
-struct recurrence_id
-{
-	gchar     *uid;
-	GDateTime *dtstart;
-	GDateTime *range;
-	gint      sequence;
-};
-
-struct x_google_task_link_t
-{
-	gchar *type;
-	gchar *description;
-	gchar *url;
-};
-
-enum status_t
-{
-	STATUS_NEEDS_ACTION = 1,
-	STATUS_COMPLETED,
-	STATUS_IN_PROCESS,
-	STATUS_CANCELLED
-};
-
-
-
-
-/*
- * Container for both standard iCalendar fields and Google Task specific
- * fields.  Fields that may occur more than once are defined as lists.
- */
-typedef struct 
-{
-	gchar                       *uid;
-	gchar                       *url;
-	gchar                       *x_google_task_url;
-	gchar                       *x_google_task_id;
-
-	gint                        seq;
-	GDateTime                   *last_modified;
-
-	GSList                      *comment;
-	gchar                       *description;
-	gchar                       *title;
-
-	gchar                       *class;
-	gint                        priority;
-	enum status_t               status;
-    gint                        percent;
-	gchar                       *organizer;
-	gchar                       *contact;
-	gchar                       *location;
-	struct geo_location_t       geo;
-
-	GDateTime                   *created;
-	GDateTime                   *dtstamp;
-	GDateTime                   *dtstart;
-	GDateTime                   *due;
-	GDateTime                   *duration;
-	GDateTime                   *completed;
-
-	GSList                      *related;
-	gchar                       *x_google_task_position;
-	GSList                      *resources;
-
-	GSList                      *attendee;
-	GSList                      *request_status;
-
-	GSList                      *exdate;
-	GSList                      *exrule;
-
-	struct recurrence_id        recurrence;
-	GSList                      *rdate;
-	GSList                      *rrule;
-	GSList                      *rstatus;
-
-	gboolean                    x_google_task_deleted;
-	gboolean                    x_google_task_hidden;
-
-	GSList                      *attach;
-    /* The links are obvious as attachments, but I need to figure out
-	   how to add the link description to the attachment.
-	GSList                      *x_google_task_links;
-	*/
-} unified_task_t;
-
-
-/* Pointers to matching task and todo entries.  If one pointer is NULL, then
-   the other task/todo has no corresponding todo/task. */
-typedef struct
-{
-	gtask_t     *google_task;
-	icalendar_t *ical_todo;
-} match_t;
-
-struct merged_tasks_t
-{
-	GTree  *merged_tasks;
-	GSList *unmatched_icalendar_todos;
-	GSList *unmatched_google_tasks;
-	GSList *problems;
-};
 
 struct match_pair_search_t
 {
@@ -220,7 +109,6 @@ struct problem_detection_t
 	const gchar *id;
 	gboolean    problem_detected;
 };
-
 
 
 
@@ -379,7 +267,7 @@ create_new_google_task( gtask_t *google_task )
  * @return Merged task.
  */
 unified_task_t*
-merge_matching_tasks( const icalendar_t* ical_todo, const gtask_t *google_task )
+merge_matching_tasks( const icalcomponent *ical_todo, const gtask_t *google_task )
 {
     /* Determine which one is newer.  The Google Task includes the "updated"
 	   field, which is set automatically when the user updates the task.  We
@@ -492,7 +380,7 @@ STATIC gboolean
 merge_one_icalendar_match( gpointer key,
 						   gpointer ical_todo_ptr, gpointer search_ptr )
 {
-	const icalendar_t          *ical_todo         = ical_todo_ptr;
+	const icalcomponent        *ical_todo         = ical_todo_ptr;
 	struct match_pair_search_t *match_pair_search = search_ptr;
 	const gtask_t              *google_task;
 	unified_task_t             *merged_task;
@@ -501,18 +389,19 @@ merge_one_icalendar_match( gpointer key,
 	/* Find the Google task that has an ID or an x-google-task-id that is
 	   identical to the UID of the iCalendar todo. */
 	google_task = g_tree_lookup( match_pair_search->all_google_tasks,
-								 ical_todo->id );
+			(gchar*) icalcomponent_get_uid( (icalcomponent*) ical_todo ) );
 	/* Merge if a corresponding Google Task was found. */
 	if( google_task != NULL )
 	{
-		merged_task = merge_matching_tasks( (const icalendar_t*) ical_todo,
+		merged_task = merge_matching_tasks( (const icalcomponent*) ical_todo,
 											(const gtask_t*) google_task );
 		/* If the tasks could not be merged, add the ID to the problems
 		   list. */
 		if( merged_task == NULL )
 		{
 			match_pair_search->merged_tasks.problems = g_slist_append(
-				match_pair_search->merged_tasks.problems, ical_todo->id );
+				match_pair_search->merged_tasks.problems,
+				(gchar*) icalcomponent_get_uid( (icalcomponent*) ical_todo ) );
 		}
 		stop_foreach = TRUE;
 	}
@@ -523,7 +412,7 @@ merge_one_icalendar_match( gpointer key,
 		match_pair_search->merged_tasks.unmatched_icalendar_todos =
 			g_slist_append(
 				match_pair_search->merged_tasks.unmatched_icalendar_todos,
-				(icalendar_t*) ical_todo );
+				(icalcomponent*) ical_todo );
 		stop_foreach = FALSE;
 	}
 
