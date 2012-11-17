@@ -28,7 +28,6 @@
 #include <assert.h>
 #include <glib.h>
 #include <glib/gprintf.h>
-#include <glib/gkeyfile.h>
 #include "gtasks2ical.h"
 
 
